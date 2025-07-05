@@ -1,6 +1,5 @@
-
 import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, emailRedirectUrl } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -49,15 +48,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signUp = async (email: string, password: string) => {
     console.log('Attempting to sign up:', email);
     
-    // First try to sign up
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: emailRedirectUrl
+      }
     });
     
-    if (signUpError) {
+    if (error) {
       // If user already exists, try to sign in instead
-      if (signUpError.message.includes('already registered')) {
+      if (error.message.includes('already registered')) {
         console.log('User already exists, signing in instead');
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -66,21 +67,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (signInError) throw signInError;
         return;
       }
-      throw signUpError;
+      throw error;
     }
     
-    // If signup was successful but no session (email confirmation required)
-    if (signUpData.user && !signUpData.session) {
-      console.log('Signup successful but no session - trying to sign in');
-      // Try to sign in immediately
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (signInError) {
-        console.error('Sign in after signup failed:', signInError);
-        throw new Error('Account created but email confirmation is required. Please check your email.');
-      }
+    // If signup requires email confirmation
+    if (data.user && !data.session) {
+      console.log('Account created, email confirmation required');
+      throw new Error('Please check your email and click the confirmation link to complete your registration.');
     }
   };
 
