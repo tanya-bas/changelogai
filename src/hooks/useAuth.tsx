@@ -27,6 +27,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setUser(session?.user ?? null);
         setLoading(false);
       }
@@ -44,11 +45,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: undefined // Disable email confirmation
+      }
     });
+    
     if (error) throw error;
+    
+    // If user is created but not confirmed, still set them as authenticated
+    if (data.user && !data.session) {
+      // Try to sign them in immediately
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (signInError) throw signInError;
+    }
   };
 
   const signOut = async () => {
