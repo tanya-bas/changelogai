@@ -20,6 +20,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.email || 'No user');
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -37,6 +38,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    console.log('Attempting to sign in:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -45,18 +47,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    console.log('Attempting to sign up:', email);
+    
+    // First try to sign up
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: undefined, // Disable email confirmation completely
-        data: {
-          email_confirm: false // Additional flag to disable confirmation
-        }
-      }
     });
     
-    if (error) throw error;
+    if (signUpError) {
+      // If user already exists, try to sign in instead
+      if (signUpError.message.includes('already registered')) {
+        console.log('User already exists, signing in instead');
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+        return;
+      }
+      throw signUpError;
+    }
+    
+    // If signup was successful but no session (email confirmation required)
+    if (signUpData.user && !signUpData.session) {
+      console.log('Signup successful but no session - trying to sign in');
+      // Try to sign in immediately
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (signInError) {
+        console.error('Sign in after signup failed:', signInError);
+        throw new Error('Account created but email confirmation is required. Please check your email.');
+      }
+    }
   };
 
   const signOut = async () => {
