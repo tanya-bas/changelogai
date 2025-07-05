@@ -25,7 +25,7 @@ const AuthForm = () => {
     try {
       if (isSignUp) {
         await signUp(email, password);
-        toast.success('Account created! Please check your email to confirm your account.');
+        toast.success('Account created and signed in successfully!');
       } else {
         await signIn(email, password);
         toast.success('Signed in successfully!');

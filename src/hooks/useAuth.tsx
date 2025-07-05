@@ -49,7 +49,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/developer`
+        emailRedirectTo: undefined, // Disable email confirmation completely
+        data: {
+          email_confirm: false // Additional flag to disable confirmation
+        }
       }
     });
     
