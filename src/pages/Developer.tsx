@@ -1,19 +1,67 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Sparkles, Eye } from "lucide-react";
+import { ArrowLeft, Sparkles, Eye, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import AuthForm from "@/components/AuthForm";
 
 const Developer = () => {
   const [version, setVersion] = useState("");
   const [commits, setCommits] = useState("");
   const [generatedChangelog, setGeneratedChangelog] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const { user, loading, signOut } = useAuth();
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth form if not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <header className="border-b bg-white/80 backdrop-blur-sm">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <Link to="/" className="flex items-center space-x-2 text-slate-600 hover:text-slate-900 transition-colors">
+                <ArrowLeft className="h-5 w-5" />
+                <span>Back to Home</span>
+              </Link>
+              <div className="flex items-center space-x-2">
+                <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg"></div>
+                <h1 className="text-xl font-bold">Developer Tool</h1>
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        <div className="container mx-auto px-4 py-16">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-slate-900 mb-4">Developer Access Required</h1>
+            <p className="text-lg text-slate-600 mb-8">
+              Sign in to access the changelog generation tool
+            </p>
+          </div>
+          <AuthForm />
+        </div>
+      </div>
+    );
+  }
 
   // Simulate AI changelog generation
   const generateChangelog = async () => {
@@ -92,33 +140,44 @@ const Developer = () => {
     return description || 'Miscellaneous updates';
   };
 
-  const publishChangelog = () => {
+  const publishChangelog = async () => {
     if (!generatedChangelog) {
       toast.error("Generate a changelog first");
       return;
     }
 
-    // Get existing changelogs from localStorage
-    const existingChangelogs = JSON.parse(localStorage.getItem('changelogs') || '[]');
-    
-    // Add new changelog
-    const newChangelog = {
-      id: Date.now(),
-      version,
-      content: generatedChangelog,
-      date: new Date().toISOString(),
-      commits: commits
-    };
-    
-    existingChangelogs.unshift(newChangelog);
-    localStorage.setItem('changelogs', JSON.stringify(existingChangelogs));
-    
-    toast.success("Changelog published successfully!");
-    
-    // Reset form
-    setVersion("");
-    setCommits("");
-    setGeneratedChangelog("");
+    try {
+      const { error } = await supabase
+        .from('changelogs')
+        .insert([
+          {
+            version,
+            content: generatedChangelog,
+            commits: commits,
+            user_id: user.id
+          }
+        ]);
+
+      if (error) throw error;
+
+      toast.success("Changelog published successfully!");
+      
+      // Reset form
+      setVersion("");
+      setCommits("");
+      setGeneratedChangelog("");
+    } catch (error: any) {
+      toast.error("Failed to publish changelog: " + error.message);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast.success("Signed out successfully");
+    } catch (error: any) {
+      toast.error("Failed to sign out: " + error.message);
+    }
   };
 
   return (
@@ -135,12 +194,19 @@ const Developer = () => {
               <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg"></div>
               <h1 className="text-xl font-bold">Developer Tool</h1>
             </div>
-            <Link to="/changelog">
-              <Button variant="outline">
-                <Eye className="mr-2 h-4 w-4" />
-                View Public Changelog
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-slate-600">{user.email}</span>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
               </Button>
-            </Link>
+              <Link to="/changelog">
+                <Button variant="outline">
+                  <Eye className="mr-2 h-4 w-4" />
+                  View Public Changelog
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>

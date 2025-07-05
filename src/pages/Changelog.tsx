@@ -5,24 +5,40 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Search, Wrench } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChangelogEntry {
   id: number;
   version: string;
   content: string;
-  date: string;
+  created_at: string;
   commits: string;
 }
 
 const Changelog = () => {
   const [changelogs, setChangelogs] = useState<ChangelogEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load changelogs from localStorage
-    const storedChangelogs = JSON.parse(localStorage.getItem('changelogs') || '[]');
-    setChangelogs(storedChangelogs);
+    fetchChangelogs();
   }, []);
+
+  const fetchChangelogs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('changelogs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setChangelogs(data || []);
+    } catch (error) {
+      console.error('Error fetching changelogs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredChangelogs = changelogs.filter(changelog =>
     changelog.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -56,6 +72,17 @@ const Changelog = () => {
         return <p key={index} className="text-slate-700 mb-2">{line}</p>;
       });
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading changelogs...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -113,7 +140,7 @@ const Changelog = () => {
                           Version {changelog.version}
                         </h2>
                         <p className="text-slate-600">
-                          Released on {formatDate(changelog.date)}
+                          Released on {formatDate(changelog.created_at)}
                         </p>
                       </div>
                       <div className="text-sm text-slate-500 bg-white px-3 py-1 rounded-full">
