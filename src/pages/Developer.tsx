@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,6 @@ const Developer = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const { user, loading, signOut } = useAuth();
 
-  // Show loading state while checking authentication
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
@@ -31,7 +30,6 @@ const Developer = () => {
     );
   }
 
-  // Show auth form if not authenticated
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -63,7 +61,6 @@ const Developer = () => {
     );
   }
 
-  // Simulate AI changelog generation
   const generateChangelog = async () => {
     if (!commits.trim() || !version.trim()) {
       toast.error("Please enter both version and commits");
@@ -72,10 +69,8 @@ const Developer = () => {
 
     setIsGenerating(true);
     
-    // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Parse commits and generate user-friendly changelog
     const commitLines = commits.split('\n').filter(line => line.trim());
     const changes = {
       features: [] as string[],
@@ -126,13 +121,11 @@ const Developer = () => {
   };
 
   const extractChangeDescription = (commit: string): string => {
-    // Remove common prefixes and make user-friendly
     let description = commit
       .replace(/^(feat|fix|chore|docs|style|refactor|test)(\(.+\))?:\s*/i, '')
       .replace(/^Merge .+/, '')
       .trim();
     
-    // Capitalize first letter
     if (description) {
       description = description.charAt(0).toUpperCase() + description.slice(1);
     }
@@ -147,6 +140,7 @@ const Developer = () => {
     }
 
     try {
+      // First, check if the changelogs table exists by trying to insert
       const { error } = await supabase
         .from('changelogs')
         .insert([
@@ -158,11 +152,19 @@ const Developer = () => {
           }
         ]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        // If table doesn't exist, show a helpful message
+        if (error.code === '42P01') {
+          toast.error("Database not set up yet. Please create the changelogs table in Supabase first.");
+        } else {
+          toast.error("Failed to publish changelog: " + error.message);
+        }
+        return;
+      }
 
       toast.success("Changelog published successfully!");
       
-      // Reset form
       setVersion("");
       setCommits("");
       setGeneratedChangelog("");
@@ -182,7 +184,6 @@ const Developer = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -221,7 +222,6 @@ const Developer = () => {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
-            {/* Input Section */}
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle>Input</CardTitle>
@@ -275,7 +275,6 @@ feat(ui): improve dashboard layout`}
               </CardContent>
             </Card>
 
-            {/* Output Section */}
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle>Generated Changelog</CardTitle>

@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -54,16 +54,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
     
     if (error) throw error;
-    
-    // If user is created but not confirmed, still set them as authenticated
-    if (data.user && !data.session) {
-      // Try to sign them in immediately
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (signInError) throw signInError;
-    }
   };
 
   const signOut = async () => {
