@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,10 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Sparkles, Eye, LogOut } from "lucide-react";
+import { ArrowLeft, Sparkles, Eye, LogOut, Zap, Brain } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { changelogGenerator } from "@/services/changelogGenerator";
 import AuthForm from "@/components/AuthForm";
 
 const Developer = () => {
@@ -17,6 +17,7 @@ const Developer = () => {
   const [commits, setCommits] = useState("");
   const [generatedChangelog, setGeneratedChangelog] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [useAdvancedGeneration, setUseAdvancedGeneration] = useState(true);
   const { user, loading, signOut } = useAuth();
 
   if (loading) {
@@ -69,55 +70,71 @@ const Developer = () => {
 
     setIsGenerating(true);
     
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const commitLines = commits.split('\n').filter(line => line.trim());
-    const changes = {
-      features: [] as string[],
-      improvements: [] as string[],
-      fixes: [] as string[]
-    };
-
-    commitLines.forEach(commit => {
-      const lower = commit.toLowerCase();
-      if (lower.includes('feat') || lower.includes('add') || lower.includes('new')) {
-        changes.features.push(extractChangeDescription(commit));
-      } else if (lower.includes('fix') || lower.includes('bug') || lower.includes('resolve')) {
-        changes.fixes.push(extractChangeDescription(commit));
+    try {
+      let changelog: string;
+      
+      if (useAdvancedGeneration) {
+        // Use the new advanced generator
+        changelog = await changelogGenerator.generateAdvancedChangelog(version, commits);
+        toast.success("Advanced changelog generated with context awareness!");
       } else {
-        changes.improvements.push(extractChangeDescription(commit));
+        // Keep the original simple generation as fallback
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const commitLines = commits.split('\n').filter(line => line.trim());
+        const changes = {
+          features: [] as string[],
+          improvements: [] as string[],
+          fixes: [] as string[]
+        };
+
+        commitLines.forEach(commit => {
+          const lower = commit.toLowerCase();
+          if (lower.includes('feat') || lower.includes('add') || lower.includes('new')) {
+            changes.features.push(extractChangeDescription(commit));
+          } else if (lower.includes('fix') || lower.includes('bug') || lower.includes('resolve')) {
+            changes.fixes.push(extractChangeDescription(commit));
+          } else {
+            changes.improvements.push(extractChangeDescription(commit));
+          }
+        });
+
+        changelog = `## Version ${version}\n\n`;
+        
+        if (changes.features.length > 0) {
+          changelog += "### 🚀 New Features\n";
+          changes.features.forEach(feature => {
+            changelog += `- ${feature}\n`;
+          });
+          changelog += "\n";
+        }
+
+        if (changes.improvements.length > 0) {
+          changelog += "### ⚡ Improvements\n";
+          changes.improvements.forEach(improvement => {
+            changelog += `- ${improvement}\n`;
+          });
+          changelog += "\n";
+        }
+
+        if (changes.fixes.length > 0) {
+          changelog += "### 🐛 Bug Fixes\n";
+          changes.fixes.forEach(fix => {
+            changelog += `- ${fix}\n`;
+          });
+          changelog += "\n";
+        }
+        
+        toast.success("Simple changelog generated successfully!");
       }
-    });
 
-    let changelog = `## Version ${version}\n\n`;
-    
-    if (changes.features.length > 0) {
-      changelog += "### 🚀 New Features\n";
-      changes.features.forEach(feature => {
-        changelog += `- ${feature}\n`;
-      });
-      changelog += "\n";
+      setGeneratedChangelog(changelog);
+    } catch (error) {
+      console.error('Error generating changelog:', error);
+      toast.error("Failed to generate changelog. Please try again.");
+    } finally {
+      setIsGenerating(false);
     }
-
-    if (changes.improvements.length > 0) {
-      changelog += "### ⚡ Improvements\n";
-      changes.improvements.forEach(improvement => {
-        changelog += `- ${improvement}\n`;
-      });
-      changelog += "\n";
-    }
-
-    if (changes.fixes.length > 0) {
-      changelog += "### 🐛 Bug Fixes\n";
-      changes.fixes.forEach(fix => {
-        changelog += `- ${fix}\n`;
-      });
-      changelog += "\n";
-    }
-
-    setGeneratedChangelog(changelog);
-    setIsGenerating(false);
-    toast.success("Changelog generated successfully!");
   };
 
   const extractChangeDescription = (commit: string): string => {
@@ -217,7 +234,7 @@ const Developer = () => {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-4">Generate Your Changelog</h1>
             <p className="text-lg text-slate-600">
-              Paste your commits below and let AI create a user-friendly changelog
+              AI-powered changelog generation with context awareness and professional formatting
             </p>
           </div>
 
@@ -245,15 +262,44 @@ const Developer = () => {
                   <Textarea
                     id="commits"
                     placeholder={`Paste your commits here, e.g.:
-feat: add user authentication
-fix: resolve login redirect issue
-chore: update dependencies
-feat(ui): improve dashboard layout`}
+feat(auth): add OAuth integration
+fix: resolve dashboard loading issue
+perf: optimize database queries
+feat(ui): improve mobile responsiveness
+BREAKING CHANGE: update API endpoint structure`}
                     className="min-h-[300px]"
                     value={commits}
                     onChange={(e) => setCommits(e.target.value)}
                   />
                 </div>
+
+                <div className="flex items-center space-x-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <input
+                    type="checkbox"
+                    id="advanced-generation"
+                    checked={useAdvancedGeneration}
+                    onChange={(e) => setUseAdvancedGeneration(e.target.checked)}
+                    className="rounded"
+                  />
+                  <Label htmlFor="advanced-generation" className="flex items-center space-x-2 cursor-pointer">
+                    <Brain className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">
+                      Use Advanced AI Generation
+                    </span>
+                  </Label>
+                </div>
+                
+                {useAdvancedGeneration && (
+                  <div className="text-xs text-blue-700 bg-blue-50 p-3 rounded border border-blue-200">
+                    <div className="font-medium mb-1">Advanced Features:</div>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Context-aware generation using previous changelogs</li>
+                      <li>Conventional commit parsing and categorization</li>
+                      <li>Breaking change detection and migration guidance</li>
+                      <li>Professional formatting inspired by major tech companies</li>
+                    </ul>
+                  </div>
+                )}
 
                 <Button 
                   onClick={generateChangelog} 
@@ -267,8 +313,12 @@ feat(ui): improve dashboard layout`}
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate Changelog
+                      {useAdvancedGeneration ? (
+                        <Zap className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Sparkles className="mr-2 h-4 w-4" />
+                      )}
+                      Generate {useAdvancedGeneration ? 'Advanced' : 'Simple'} Changelog
                     </>
                   )}
                 </Button>
