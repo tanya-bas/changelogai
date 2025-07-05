@@ -6,12 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import EmailConfirmation from './EmailConfirmation';
 
 const AuthForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState('');
   const { signIn, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,6 +28,8 @@ const AuthForm = () => {
     try {
       if (isSignUp) {
         await signUp(email, password);
+        setConfirmationEmail(email);
+        setShowEmailConfirmation(true);
         toast.success('Account created! Please check your email to verify your account.');
       } else {
         await signIn(email, password);
@@ -36,6 +41,22 @@ const AuthForm = () => {
       setLoading(false);
     }
   };
+
+  const handleBackToLogin = () => {
+    setShowEmailConfirmation(false);
+    setIsSignUp(false);
+    setEmail('');
+    setPassword('');
+  };
+
+  if (showEmailConfirmation) {
+    return (
+      <EmailConfirmation 
+        email={confirmationEmail} 
+        onBackToLogin={handleBackToLogin}
+      />
+    );
+  }
 
   return (
     <Card className="w-full max-w-md mx-auto">
