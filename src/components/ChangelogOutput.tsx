@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,7 +24,7 @@ export const ChangelogOutput = ({
   const [editedChangelog, setEditedChangelog] = useState(generatedChangelog);
 
   // Update edited changelog when generated changelog changes
-  useState(() => {
+  useEffect(() => {
     setEditedChangelog(generatedChangelog);
   }, [generatedChangelog]);
 
