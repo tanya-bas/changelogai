@@ -31,6 +31,10 @@ export const ChangelogOutput = ({
   // Update edited changelog when generated changelog changes
   useEffect(() => {
     setEditedChangelog(generatedChangelog);
+    // Also exit editing mode when changelog is cleared
+    if (!generatedChangelog) {
+      setIsEditing(false);
+    }
   }, [generatedChangelog]);
 
   const handleEdit = () => {
@@ -47,13 +51,8 @@ export const ChangelogOutput = ({
     const changelogToPublish = isEditing ? editedChangelog : generatedChangelog;
     try {
       await onPublish(changelogToPublish, product);
-      // Clear the local state after successful publishing
-      setEditedChangelog("");
-      setIsEditing(false);
-      // Call the parent's clear function to clear the generated changelog
-      if (onClearChangelog && typeof onClearChangelog === 'function') {
-        onClearChangelog();
-      }
+      // Only call the parent's clear function - let useEffect handle local state
+      onClearChangelog();
     } catch (error) {
       // Error handling is done in the parent component
       console.error('Error in handlePublish:', error);
@@ -113,7 +112,7 @@ export const ChangelogOutput = ({
                   <>
                     <Upload className="mr-2 h-4 w-4" />
                     Publish Changelog
-                  </>
+                  </Button>
                 )}
               </Button>
             </div>
