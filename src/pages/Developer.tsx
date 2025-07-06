@@ -104,12 +104,29 @@ Make it user-friendly and clear:`;
         repetition_penalty: 1.1,
       });
 
-      const changelog = result[0]?.generated_text?.replace(prompt, '').trim() || '';
+      console.log('Generated result:', result);
+      
+      // Handle the result properly - it should be an array of objects
+      let changelog = '';
+      if (Array.isArray(result) && result.length > 0) {
+        // Check if the result has the expected structure
+        const firstResult = result[0];
+        if (typeof firstResult === 'object' && firstResult !== null) {
+          // Try different possible property names
+          changelog = (firstResult as any).generated_text || 
+                     (firstResult as any).text || 
+                     (firstResult as any).output || 
+                     String(firstResult);
+        }
+      } else if (typeof result === 'string') {
+        changelog = result;
+      }
 
-      if (changelog) {
+      if (changelog && changelog.trim()) {
         // Clean up the generated text and format it properly
-        const cleanedChangelog = `## Version ${version}\n\n${changelog}`;
-        setGeneratedChangelog(cleanedChangelog);
+        const cleanedChangelog = changelog.replace(prompt, '').trim();
+        const finalChangelog = `## Version ${version}\n\n${cleanedChangelog}`;
+        setGeneratedChangelog(finalChangelog);
         toast.success("AI-enhanced changelog generated successfully!");
       } else {
         throw new Error('No changelog generated');
