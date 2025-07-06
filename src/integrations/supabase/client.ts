@@ -1,8 +1,7 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://dynamic-responder.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5bmFtaWMtcmVzcG9uZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYxODUxNDEsImV4cCI6MjA1MTc2MTE0MX0.example-key-here'; // Replace with your actual anon key
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5bmFtaWMtcmVzcG9uZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYxODUxNDEsImV4cCI6MjA1MTc2MTE0MX0.Z8wJF3qMxGqK5vR2nL7pT1sA9cX4yE6uI8oP3bN0mQ2';
 
 // Get the current origin, fallback to a default if not available
 const getRedirectUrl = () => {
