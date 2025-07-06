@@ -11,6 +11,8 @@ interface ChangelogInputProps {
   setVersion: (version: string) => void;
   commits: string;
   setCommits: (commits: string) => void;
+  product: string;
+  setProduct: (product: string) => void;
   onGenerate: () => void;
   isGenerating: boolean;
   isModelLoading: boolean;
@@ -21,6 +23,8 @@ export const ChangelogInput = ({
   setVersion,
   commits,
   setCommits,
+  product,
+  setProduct,
   onGenerate,
   isGenerating,
   isModelLoading
@@ -30,7 +34,7 @@ export const ChangelogInput = ({
       <CardHeader>
         <CardTitle>Input</CardTitle>
         <CardDescription>
-          Enter your version number and commit messages
+          Enter your version number, product, and commit messages
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -41,6 +45,16 @@ export const ChangelogInput = ({
             placeholder="e.g., 2.1.0"
             value={version}
             onChange={(e) => setVersion(e.target.value)}
+          />
+        </div>
+        
+        <div>
+          <Label htmlFor="product">Product (Optional)</Label>
+          <Input
+            id="product"
+            placeholder="e.g., Web App, Mobile App, API"
+            value={product}
+            onChange={(e) => setProduct(e.target.value)}
           />
         </div>
         

@@ -1,11 +1,12 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Wrench, Edit, Trash2, Save, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Search, Wrench, Edit, Trash2, Save, X, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -17,16 +18,22 @@ interface ChangelogEntry {
   created_at: string;
   commits: string;
   user_id: string;
+  product?: string;
 }
 
 const Index = () => {
   const [changelogs, setChangelogs] = useState<ChangelogEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState("");
   const [editingVersion, setEditingVersion] = useState("");
+  const [editingProduct, setEditingProduct] = useState("");
   const { user } = useAuth();
+
+  // Get unique products from changelogs
+  const products = Array.from(new Set(changelogs.map(c => c.product).filter(Boolean))) as string[];
 
   useEffect(() => {
     fetchChangelogs();
@@ -52,6 +59,7 @@ const Index = () => {
     setEditingId(changelog.id);
     setEditingContent(changelog.content);
     setEditingVersion(changelog.version);
+    setEditingProduct(changelog.product || "");
   };
 
   const handleSaveEdit = async (id: number) => {
@@ -60,7 +68,8 @@ const Index = () => {
         .from('changelogs')
         .update({
           version: editingVersion,
-          content: editingContent
+          content: editingContent,
+          product: editingProduct || null
         })
         .eq('id', id);
 
@@ -69,7 +78,7 @@ const Index = () => {
       // Update local state
       setChangelogs(changelogs.map(changelog => 
         changelog.id === id 
-          ? { ...changelog, version: editingVersion, content: editingContent }
+          ? { ...changelog, version: editingVersion, content: editingContent, product: editingProduct || undefined }
           : changelog
       ));
 
@@ -85,6 +94,7 @@ const Index = () => {
     setEditingId(null);
     setEditingContent("");
     setEditingVersion("");
+    setEditingProduct("");
   };
 
   const handleDelete = async (id: number) => {
@@ -109,10 +119,14 @@ const Index = () => {
     }
   };
 
-  const filteredChangelogs = changelogs.filter(changelog =>
-    changelog.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    changelog.content.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredChangelogs = changelogs.filter(changelog => {
+    const matchesSearch = changelog.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      changelog.content.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesProduct = selectedProduct === "all" || changelog.product === selectedProduct;
+    
+    return matchesSearch && matchesProduct;
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -181,15 +195,33 @@ const Index = () => {
               Stay up to date with the latest features, improvements, and fixes
             </p>
             
-            {/* Search */}
-            <div className="relative max-w-md mx-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-              <Input
-                placeholder="Search changelogs..."
-                className="pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            {/* Search and Filter */}
+            <div className="flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                <Input
+                  placeholder="Search changelogs..."
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Filter className="text-slate-400 h-4 w-4" />
+                <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by product" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border shadow-lg">
+                    <SelectItem value="all">All Products</SelectItem>
+                    {products.map((product) => (
+                      <SelectItem key={product} value={product}>
+                        {product}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -202,20 +234,36 @@ const Index = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         {editingId === changelog.id ? (
-                          <Input
-                            value={editingVersion}
-                            onChange={(e) => setEditingVersion(e.target.value)}
-                            className="text-xl font-bold mb-2"
-                            placeholder="Version"
-                          />
+                          <div className="space-y-2">
+                            <Input
+                              value={editingVersion}
+                              onChange={(e) => setEditingVersion(e.target.value)}
+                              className="text-xl font-bold"
+                              placeholder="Version"
+                            />
+                            <Input
+                              value={editingProduct}
+                              onChange={(e) => setEditingProduct(e.target.value)}
+                              placeholder="Product name (optional)"
+                            />
+                          </div>
                         ) : (
-                          <h2 className="text-xl font-bold text-slate-900">
-                            Version {changelog.version}
-                          </h2>
+                          <>
+                            <div className="flex items-center gap-2 mb-2">
+                              <h2 className="text-xl font-bold text-slate-900">
+                                Version {changelog.version}
+                              </h2>
+                              {changelog.product && (
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                  {changelog.product}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-slate-600">
+                              Released on {formatDate(changelog.created_at)}
+                            </p>
+                          </>
                         )}
-                        <p className="text-slate-600">
-                          Released on {formatDate(changelog.created_at)}
-                        </p>
                       </div>
                       <div className="flex items-center space-x-2">
                         <div className="text-sm text-slate-500 bg-white px-3 py-1 rounded-full">
@@ -308,7 +356,7 @@ const Index = () => {
                     No results found
                   </h3>
                   <p className="text-slate-600">
-                    Try adjusting your search terms
+                    Try adjusting your search terms or filter settings
                   </p>
                 </CardContent>
               </Card>

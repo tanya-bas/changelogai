@@ -10,7 +10,8 @@ interface ChangelogOutputProps {
   generatedChangelog: string;
   version: string;
   commits: string;
-  onPublish: (changelog: string) => void;
+  product: string;
+  onPublish: (changelog: string, product: string) => void;
   isPublishing: boolean;
 }
 
@@ -18,6 +19,7 @@ export const ChangelogOutput = ({
   generatedChangelog, 
   version, 
   commits, 
+  product,
   onPublish,
   isPublishing 
 }: ChangelogOutputProps) => {
@@ -41,7 +43,7 @@ export const ChangelogOutput = ({
 
   const handlePublish = () => {
     const changelogToPublish = isEditing ? editedChangelog : generatedChangelog;
-    onPublish(changelogToPublish);
+    onPublish(changelogToPublish, product);
   };
 
   return (
