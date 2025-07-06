@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://dynamic-responder.supabase.co';
-const supabaseAnonKey = 'your-new-anon-key-here'; // You'll need to get this from your Supabase dashboard
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5bmFtaWMtcmVzcG9uZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYxODUxNDEsImV4cCI6MjA1MTc2MTE0MX0.example-key-here'; // Replace with your actual anon key
 
 // Get the current origin, fallback to a default if not available
 const getRedirectUrl = () => {
