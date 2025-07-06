@@ -36,10 +36,10 @@ export const DeveloperHeader = () => {
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
               </Button>
-              <Link to="/changelog">
+              <Link to="/">
                 <Button variant="outline">
                   <Eye className="mr-2 h-4 w-4" />
-                  View Public Changelog
+                  View Changelog
                 </Button>
               </Link>
             </div>
