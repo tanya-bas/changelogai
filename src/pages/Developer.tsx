@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,13 +10,14 @@ import { ArrowLeft, Sparkles, LogOut, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import AuthForm from "@/components/AuthForm";
+import { pipeline } from "@huggingface/transformers";
 
 const Developer = () => {
   const [version, setVersion] = useState("");
   const [commits, setCommits] = useState("");
-  const [apiKey, setApiKey] = useState("");
   const [generatedChangelog, setGeneratedChangelog] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isModelLoading, setIsModelLoading] = useState(false);
   const { user, loading, signOut } = useAuth();
 
   if (loading) {
@@ -66,66 +68,112 @@ const Developer = () => {
       return;
     }
 
-    if (!apiKey.trim()) {
-      toast.error("Please enter your OpenAI API key");
-      return;
-    }
-
     setIsGenerating(true);
+    setIsModelLoading(true);
     
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a changelog generator. Convert the provided commit messages into a well-formatted, user-friendly changelog. 
+      console.log('Loading Hugging Face model...');
+      toast.info("Loading AI model... This may take a moment on first use");
+      
+      // Create a text generation pipeline using a smaller, faster model
+      const generator = await pipeline(
+        "text-generation",
+        "microsoft/DialoGPT-medium",
+        { device: "webgpu" }
+      );
 
-Format the output as markdown with:
-- A version header (## Version X.X.X)
-- Organized sections: 🚀 New Features, ⚡ Improvements, 🐛 Bug Fixes
-- Each change as a bullet point with clear, user-friendly language
-- Remove technical jargon and make it accessible to end users
+      setIsModelLoading(false);
+      console.log('Model loaded, generating changelog...');
 
-If a commit doesn't fit clearly into features/improvements/fixes, put it in the most appropriate category or create a "🔧 Other Changes" section.`
-            },
-            {
-              role: 'user',
-              content: `Version: ${version}\n\nCommit messages:\n${commits}`
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 1500,
-        }),
+      const prompt = `Transform these commit messages into a well-formatted changelog for version ${version}:
+
+Commits:
+${commits}
+
+Format as markdown with sections for:
+- 🚀 New Features
+- ⚡ Improvements  
+- 🐛 Bug Fixes
+
+Make it user-friendly and clear:`;
+
+      const result = await generator(prompt, {
+        max_new_tokens: 500,
+        temperature: 0.3,
+        do_sample: true,
+        repetition_penalty: 1.1,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      const changelog = data.choices[0]?.message?.content || '';
+      const changelog = result[0]?.generated_text?.replace(prompt, '').trim() || '';
 
       if (changelog) {
-        setGeneratedChangelog(changelog);
+        // Clean up the generated text and format it properly
+        const cleanedChangelog = `## Version ${version}\n\n${changelog}`;
+        setGeneratedChangelog(cleanedChangelog);
         toast.success("AI-enhanced changelog generated successfully!");
       } else {
-        throw new Error('No changelog returned from the API');
+        throw new Error('No changelog generated');
       }
       
     } catch (error: any) {
       console.error('Error generating changelog:', error);
-      toast.error("Failed to generate changelog: " + error.message);
+      
+      // Fallback to a simpler local processing if the model fails
+      console.log('Falling back to rule-based generation...');
+      const fallbackChangelog = generateFallbackChangelog(version, commits);
+      setGeneratedChangelog(fallbackChangelog);
+      toast.success("Changelog generated using fallback method");
+      
     } finally {
       setIsGenerating(false);
+      setIsModelLoading(false);
     }
+  };
+
+  const generateFallbackChangelog = (version: string, commits: string): string => {
+    const commitLines = commits.split('\n').filter(line => line.trim());
+    
+    const features: string[] = [];
+    const improvements: string[] = [];
+    const fixes: string[] = [];
+    const other: string[] = [];
+
+    commitLines.forEach(commit => {
+      const cleanCommit = commit.trim();
+      if (!cleanCommit) return;
+
+      const lowerCommit = cleanCommit.toLowerCase();
+      
+      if (lowerCommit.includes('feat') || lowerCommit.includes('add') || lowerCommit.includes('new')) {
+        features.push(`- ${cleanCommit.replace(/^(feat|add|new)[:\s]*/, '').replace(/^[a-z]/, c => c.toUpperCase())}`);
+      } else if (lowerCommit.includes('fix') || lowerCommit.includes('bug') || lowerCommit.includes('resolve')) {
+        fixes.push(`- ${cleanCommit.replace(/^(fix|bug|resolve)[:\s]*/, '').replace(/^[a-z]/, c => c.toUpperCase())}`);
+      } else if (lowerCommit.includes('improve') || lowerCommit.includes('enhance') || lowerCommit.includes('update') || lowerCommit.includes('perf')) {
+        improvements.push(`- ${cleanCommit.replace(/^(improve|enhance|update|perf)[:\s]*/, '').replace(/^[a-z]/, c => c.toUpperCase())}`);
+      } else {
+        other.push(`- ${cleanCommit.replace(/^[a-z]/, c => c.toUpperCase())}`);
+      }
+    });
+
+    let changelog = `## Version ${version}\n\n`;
+    
+    if (features.length > 0) {
+      changelog += `### 🚀 New Features\n${features.join('\n')}\n\n`;
+    }
+    
+    if (improvements.length > 0) {
+      changelog += `### ⚡ Improvements\n${improvements.join('\n')}\n\n`;
+    }
+    
+    if (fixes.length > 0) {
+      changelog += `### 🐛 Bug Fixes\n${fixes.join('\n')}\n\n`;
+    }
+    
+    if (other.length > 0) {
+      changelog += `### 🔧 Other Changes\n${other.join('\n')}\n\n`;
+    }
+
+    return changelog.trim();
   };
 
   const handleSignOut = async () => {
@@ -172,7 +220,7 @@ If a commit doesn't fit clearly into features/improvements/fixes, put it in the 
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-4">Generate Your AI-Enhanced Changelog</h1>
             <p className="text-lg text-slate-600">
-              Transform your commit messages into beautiful, user-friendly changelogs using AI
+              Transform your commit messages into beautiful, user-friendly changelogs using local AI - no API key required!
             </p>
           </div>
 
@@ -181,24 +229,10 @@ If a commit doesn't fit clearly into features/improvements/fixes, put it in the 
               <CardHeader>
                 <CardTitle>Input</CardTitle>
                 <CardDescription>
-                  Enter your OpenAI API key, version number and commit messages
+                  Enter your version number and commit messages
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="apiKey">OpenAI API Key</Label>
-                  <Input
-                    id="apiKey"
-                    type="password"
-                    placeholder="sk-..."
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    Your API key is stored locally and never sent to our servers
-                  </p>
-                </div>
-
                 <div>
                   <Label htmlFor="version">Version Number</Label>
                   <Input
@@ -232,7 +266,7 @@ feat(ui): improve mobile responsiveness`}
                   {isGenerating ? (
                     <>
                       <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                      Generating...
+                      {isModelLoading ? 'Loading AI Model...' : 'Generating...'}
                     </>
                   ) : (
                     <>
@@ -241,6 +275,11 @@ feat(ui): improve mobile responsiveness`}
                     </>
                   )}
                 </Button>
+                
+                <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded">
+                  <p className="font-medium mb-1">✨ Powered by Local AI</p>
+                  <p>Uses Hugging Face transformers running locally in your browser. The first generation may take longer as the model downloads.</p>
+                </div>
               </CardContent>
             </Card>
 
