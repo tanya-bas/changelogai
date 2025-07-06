@@ -16,6 +16,7 @@ const Developer = () => {
   const [commits, setCommits] = useState("");
   const [generatedChangelog, setGeneratedChangelog] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [apiKey, setApiKey] = useState("");
   const { user, loading, signOut } = useAuth();
 
   if (loading) {
@@ -60,82 +61,63 @@ const Developer = () => {
     );
   }
 
-  const extractChangeDescription = (commit: string): string => {
-    let description = commit
-      .replace(/^(feat|fix|chore|docs|style|refactor|test)(\(.+\))?:\s*/i, '')
-      .replace(/^Merge .+/, '')
-      .trim();
-    
-    if (description) {
-      description = description.charAt(0).toUpperCase() + description.slice(1);
-    }
-    
-    return description || 'Miscellaneous updates';
-  };
-
   const generateChangelog = async () => {
     if (!commits.trim() || !version.trim()) {
       toast.error("Please enter both version and commits");
       return;
     }
 
+    if (!apiKey.trim()) {
+      toast.error("Please enter your OpenAI API key");
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
-      // Simple delay to simulate processing
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const commitLines = commits.split('\n').filter(line => line.trim());
-      
-      const changes = {
-        features: [] as string[],
-        improvements: [] as string[],
-        fixes: [] as string[]
-      };
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4.1-2025-04-14',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a changelog generator. Convert the provided commit messages into a well-formatted, user-friendly changelog. 
 
-      commitLines.forEach(commit => {
-        const lower = commit.toLowerCase();
-        const description = extractChangeDescription(commit);
-        
-        if (lower.includes('feat') || lower.includes('add') || lower.includes('new')) {
-          changes.features.push(description);
-        } else if (lower.includes('fix') || lower.includes('bug') || lower.includes('resolve')) {
-          changes.fixes.push(description);
-        } else {
-          changes.improvements.push(description);
-        }
+Format the output as markdown with:
+- A version header (## Version X.X.X)
+- Organized sections: 🚀 New Features, ⚡ Improvements, 🐛 Bug Fixes
+- Each change as a bullet point with clear, user-friendly language
+- Remove technical jargon and make it accessible to end users
+
+If a commit doesn't fit clearly into features/improvements/fixes, put it in the most appropriate category or create a "🔧 Other Changes" section.`
+            },
+            {
+              role: 'user',
+              content: `Version: ${version}\n\nCommit messages:\n${commits}`
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 1500,
+        }),
       });
 
-      let changelog = `## Version ${version}\n\n`;
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const changelog = data.choices[0]?.message?.content || '';
       
-      if (changes.features.length > 0) {
-        changelog += "### 🚀 New Features\n";
-        changes.features.forEach(feature => {
-          changelog += `- ${feature}\n`;
-        });
-        changelog += "\n";
-      }
-
-      if (changes.improvements.length > 0) {
-        changelog += "### ⚡ Improvements\n";
-        changes.improvements.forEach(improvement => {
-          changelog += `- ${improvement}\n`;
-        });
-        changelog += "\n";
-      }
-
-      if (changes.fixes.length > 0) {
-        changelog += "### 🐛 Bug Fixes\n";
-        changes.fixes.forEach(fix => {
-          changelog += `- ${fix}\n`;
-        });
-        changelog += "\n";
-      }
-
       setGeneratedChangelog(changelog);
-      toast.success("Changelog generated successfully!");
+      toast.success("AI-enhanced changelog generated successfully!");
       
     } catch (error: any) {
+      console.error('Error generating changelog:', error);
       toast.error("Failed to generate changelog: " + error.message);
     } finally {
       setIsGenerating(false);
@@ -184,9 +166,9 @@ const Developer = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-slate-900 mb-4">Generate Your Changelog</h1>
+            <h1 className="text-3xl font-bold text-slate-900 mb-4">Generate Your AI-Enhanced Changelog</h1>
             <p className="text-lg text-slate-600">
-              Transform your commit messages into beautiful, user-friendly changelogs
+              Transform your commit messages into beautiful, user-friendly changelogs using AI
             </p>
           </div>
 
@@ -195,10 +177,21 @@ const Developer = () => {
               <CardHeader>
                 <CardTitle>Input</CardTitle>
                 <CardDescription>
-                  Enter your version number and commit messages
+                  Enter your OpenAI API key, version number and commit messages
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="apiKey">OpenAI API Key</Label>
+                  <Input
+                    id="apiKey"
+                    type="password"
+                    placeholder="sk-..."
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                  />
+                </div>
+
                 <div>
                   <Label htmlFor="version">Version Number</Label>
                   <Input
@@ -237,7 +230,7 @@ feat(ui): improve mobile responsiveness`}
                   ) : (
                     <>
                       <Sparkles className="mr-2 h-4 w-4" />
-                      Generate Changelog
+                      Generate AI Changelog
                     </>
                   )}
                 </Button>
@@ -248,7 +241,7 @@ feat(ui): improve mobile responsiveness`}
               <CardHeader>
                 <CardTitle>Generated Changelog</CardTitle>
                 <CardDescription>
-                  Your user-friendly changelog
+                  Your AI-enhanced, user-friendly changelog
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -272,7 +265,7 @@ feat(ui): improve mobile responsiveness`}
                 ) : (
                   <div className="text-center py-12 text-slate-500">
                     <Sparkles className="mx-auto h-12 w-12 mb-4 text-slate-300" />
-                    <p>Your generated changelog will appear here</p>
+                    <p>Your AI-generated changelog will appear here</p>
                   </div>
                 )}
               </CardContent>
