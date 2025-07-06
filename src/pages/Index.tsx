@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Wrench, Edit, Trash2, Save, X, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import useSemanticSearch from "@/hooks/useSemanticSearch";
-import { SemanticSearch } from "@/components/SemanticSearch";
 import { toast } from "sonner";
 
 interface ChangelogEntry {
@@ -32,9 +31,7 @@ const Index = () => {
   const [editingContent, setEditingContent] = useState("");
   const [editingVersion, setEditingVersion] = useState("");
   const [editingProduct, setEditingProduct] = useState("");
-  const [useSemanticSearch, setUseSemanticSearch] = useState(false);
   const { user } = useAuth();
-  const { isSearching, searchResult, performSemanticSearch, setSearchResult } = useSemanticSearch();
 
   const products = Array.from(new Set(changelogs.map(c => c.product).filter(Boolean))) as string[];
 
@@ -57,10 +54,6 @@ const Index = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSemanticSearch = (query: string) => {
-    performSemanticSearch(query, changelogs);
   };
 
   const handleEdit = (changelog: ChangelogEntry) => {
@@ -208,65 +201,32 @@ const Index = () => {
             </p>
             
             {/* Search and Filter */}
-            <div className="space-y-4 max-w-2xl mx-auto">
-              {/* Toggle between regular and semantic search */}
-              <div className="flex justify-center">
-                <div className="bg-white rounded-lg p-1 shadow-sm border">
-                  <Button
-                    variant={!useSemanticSearch ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => {
-                      setUseSemanticSearch(false);
-                      setSearchResult("");
-                    }}
-                  >
-                    Regular Search
-                  </Button>
-                  <Button
-                    variant={useSemanticSearch ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setUseSemanticSearch(true)}
-                  >
-                    AI Search
-                  </Button>
-                </div>
-              </div>
-
-              {useSemanticSearch ? (
-                <SemanticSearch 
-                  onSearch={handleSemanticSearch}
-                  isSearching={isSearching}
-                  searchResult={searchResult}
+            <div className="flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                <Input
+                  placeholder="Search changelogs..."
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                    <Input
-                      placeholder="Search changelogs..."
-                      className="pl-10"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Filter className="text-slate-400 h-4 w-4" />
-                    <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Filter by product" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border shadow-lg">
-                        <SelectItem value="all">All Products</SelectItem>
-                        {products.map((product) => (
-                          <SelectItem key={product} value={product}>
-                            {product}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <Filter className="text-slate-400 h-4 w-4" />
+                <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by product" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border shadow-lg">
+                    <SelectItem value="all">All Products</SelectItem>
+                    {products.map((product) => (
+                      <SelectItem key={product} value={product}>
+                        {product}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
