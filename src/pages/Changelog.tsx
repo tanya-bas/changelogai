@@ -4,8 +4,11 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, Wrench } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Search, Wrench, Edit, Trash2, Save, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface ChangelogEntry {
   id: number;
@@ -13,12 +16,17 @@ interface ChangelogEntry {
   content: string;
   created_at: string;
   commits: string;
+  user_id: string;
 }
 
 const Changelog = () => {
   const [changelogs, setChangelogs] = useState<ChangelogEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+  const [editingVersion, setEditingVersion] = useState("");
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchChangelogs();
@@ -37,6 +45,67 @@ const Changelog = () => {
       console.error('Error fetching changelogs:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEdit = (changelog: ChangelogEntry) => {
+    setEditingId(changelog.id);
+    setEditingContent(changelog.content);
+    setEditingVersion(changelog.version);
+  };
+
+  const handleSaveEdit = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from('changelogs')
+        .update({
+          version: editingVersion,
+          content: editingContent
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Update local state
+      setChangelogs(changelogs.map(changelog => 
+        changelog.id === id 
+          ? { ...changelog, version: editingVersion, content: editingContent }
+          : changelog
+      ));
+
+      setEditingId(null);
+      toast.success("Changelog updated successfully!");
+    } catch (error: any) {
+      console.error('Error updating changelog:', error);
+      toast.error("Failed to update changelog: " + error.message);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditingContent("");
+    setEditingVersion("");
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this changelog? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('changelogs')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Update local state
+      setChangelogs(changelogs.filter(changelog => changelog.id !== id));
+      toast.success("Changelog deleted successfully!");
+    } catch (error: any) {
+      console.error('Error deleting changelog:', error);
+      toast.error("Failed to delete changelog: " + error.message);
     }
   };
 
@@ -135,23 +204,83 @@ const Changelog = () => {
                 <Card key={changelog.id} className="shadow-lg border-0 hover:shadow-xl transition-shadow duration-300">
                   <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-purple-50">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-xl font-bold text-slate-900">
-                          Version {changelog.version}
-                        </h2>
+                      <div className="flex-1">
+                        {editingId === changelog.id ? (
+                          <Input
+                            value={editingVersion}
+                            onChange={(e) => setEditingVersion(e.target.value)}
+                            className="text-xl font-bold mb-2"
+                            placeholder="Version"
+                          />
+                        ) : (
+                          <h2 className="text-xl font-bold text-slate-900">
+                            Version {changelog.version}
+                          </h2>
+                        )}
                         <p className="text-slate-600">
                           Released on {formatDate(changelog.created_at)}
                         </p>
                       </div>
-                      <div className="text-sm text-slate-500 bg-white px-3 py-1 rounded-full">
-                        Latest
+                      <div className="flex items-center space-x-2">
+                        <div className="text-sm text-slate-500 bg-white px-3 py-1 rounded-full">
+                          Latest
+                        </div>
+                        {user && user.id === changelog.user_id && (
+                          <div className="flex space-x-2">
+                            {editingId === changelog.id ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSaveEdit(changelog.id)}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Save className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={handleCancelEdit}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEdit(changelog)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDelete(changelog.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-6">
-                    <div className="prose prose-slate max-w-none">
-                      {renderMarkdown(changelog.content)}
-                    </div>
+                    {editingId === changelog.id ? (
+                      <Textarea
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value)}
+                        className="min-h-[300px] bg-white"
+                        placeholder="Edit your changelog..."
+                      />
+                    ) : (
+                      <div className="prose prose-slate max-w-none">
+                        {renderMarkdown(changelog.content)}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))
