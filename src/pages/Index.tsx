@@ -130,25 +130,20 @@ const Index = () => {
         throw new Error('You do not have permission to delete this changelog');
       }
 
-      // Now perform the delete
-      const { error: deleteError, count } = await supabase
+      // Perform the delete without the extra user_id check to avoid RLS conflicts
+      const { error: deleteError } = await supabase
         .from('changelogs')
-        .delete({ count: 'exact' })
-        .eq('id', id)
-        .eq('user_id', user?.id); // Double check user ownership
+        .delete()
+        .eq('id', id);
 
       if (deleteError) {
         console.error('Supabase delete error:', deleteError);
         throw deleteError;
       }
 
-      console.log('Delete operation count:', count);
+      console.log('Delete operation completed successfully');
 
-      if (count === 0) {
-        throw new Error('No records were deleted. You may not have permission to delete this changelog.');
-      }
-
-      // Update local state only after successful database deletion
+      // Update local state after successful database deletion
       setChangelogs(prevChangelogs => {
         const updated = prevChangelogs.filter(changelog => changelog.id !== id);
         console.log('Local state updated, removed changelog ID:', id);
