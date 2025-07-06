@@ -55,48 +55,59 @@ class ChangelogEmbeddingService {
 
   async searchSimilarChangelogs(query: string, limit: number = 3): Promise<any[]> {
     try {
-      console.log('=== SEMANTIC SEARCH DEBUG ===');
-      console.log('Query:', query.substring(0, 200) + '...');
+      console.log('=== SEMANTIC SEARCH DEBUG START ===');
+      console.log('Query received:', query.substring(0, 200) + '...');
+      console.log('Query length:', query.length);
       
+      // CRITICAL: Generate embedding for the query
+      console.log('🔄 Starting query embedding generation...');
       const queryEmbedding = await embeddingService.generateEmbedding(query);
+      console.log('✅ Query embedding generated successfully!');
       console.log('Query embedding length:', queryEmbedding.length);
       console.log('Query embedding first 5 values:', queryEmbedding.slice(0, 5));
+      console.log('Query embedding stats - min:', Math.min(...queryEmbedding), 'max:', Math.max(...queryEmbedding));
       
+      // Check for NaN values in query embedding
+      const queryNanCount = queryEmbedding.filter(v => isNaN(v)).length;
+      if (queryNanCount > 0) {
+        console.error(`❌ Found ${queryNanCount} NaN values in QUERY embedding!`);
+        return [];
+      }
+      
+      console.log('🔄 Fetching stored embeddings from database...');
       // Get all embeddings from database
       const { data: embeddings, error } = await supabase
         .from('changelog_embeddings')
         .select('*');
 
       if (error) {
-        console.error('Database error:', error);
+        console.error('❌ Database error:', error);
         throw error;
       }
 
       if (!embeddings || embeddings.length === 0) {
-        console.log('No embeddings found in database');
+        console.log('⚠️ No embeddings found in database');
         return [];
       }
 
-      console.log(`Found ${embeddings.length} embeddings in database`);
+      console.log(`✅ Found ${embeddings.length} stored embeddings in database`);
 
-      // Debug first embedding
+      // Debug first stored embedding
       if (embeddings.length > 0) {
         const firstEmbedding = embeddings[0];
-        console.log('First embedding ID:', firstEmbedding.id);
-        console.log('First embedding content preview:', firstEmbedding.content?.substring(0, 100) + '...');
-        console.log('First embedding vector length:', firstEmbedding.embedding?.length);
-        console.log('First embedding vector first 5 values:', firstEmbedding.embedding?.slice(0, 5));
-        
-        // Check if embedding is stored as array or needs parsing
+        console.log('--- First stored embedding debug ---');
+        console.log('ID:', firstEmbedding.id);
+        console.log('Content preview:', firstEmbedding.content?.substring(0, 100) + '...');
+        console.log('Embedding vector length:', firstEmbedding.embedding?.length);
+        console.log('Embedding vector first 5 values:', firstEmbedding.embedding?.slice(0, 5));
         console.log('Embedding type:', typeof firstEmbedding.embedding);
         console.log('Is array?', Array.isArray(firstEmbedding.embedding));
       }
 
+      console.log('🔄 Starting similarity calculations...');
       // Calculate cosine similarity for each embedding
       const results = embeddings.map((item, index) => {
-        console.log(`\n--- Processing embedding ${index + 1}/${embeddings.length} ---`);
-        console.log('Item ID:', item.id);
-        console.log('Item content preview:', item.content?.substring(0, 50) + '...');
+        console.log(`\n--- Processing embedding ${index + 1}/${embeddings.length} (${item.id}) ---`);
         
         let embeddingVector = item.embedding;
         
@@ -104,28 +115,35 @@ class ChangelogEmbeddingService {
         if (typeof embeddingVector === 'string') {
           try {
             embeddingVector = JSON.parse(embeddingVector);
-            console.log('Parsed embedding from JSON string');
+            console.log('✅ Parsed embedding from JSON string');
           } catch (e) {
-            console.error('Failed to parse embedding JSON:', e);
+            console.error('❌ Failed to parse embedding JSON:', e);
             return { ...item, similarity: 0 };
           }
         }
         
         if (!Array.isArray(embeddingVector)) {
-          console.error('Embedding is not an array:', typeof embeddingVector);
+          console.error('❌ Embedding is not an array:', typeof embeddingVector);
           return { ...item, similarity: 0 };
         }
         
-        console.log('Embedding vector length:', embeddingVector.length);
-        console.log('Query vector length:', queryEmbedding.length);
+        console.log('Stored embedding vector length:', embeddingVector.length);
+        console.log('Query embedding vector length:', queryEmbedding.length);
         
         if (embeddingVector.length !== queryEmbedding.length) {
-          console.error('Vector length mismatch!');
+          console.error('❌ Vector length mismatch! Stored:', embeddingVector.length, 'Query:', queryEmbedding.length);
           return { ...item, similarity: 0 };
         }
         
-        const similarity = this.debugCosineSimilarity(queryEmbedding, embeddingVector, item.id);
-        console.log(`Final similarity for ${item.id}: ${similarity}`);
+        // Check for NaN values in stored embedding
+        const storedNanCount = embeddingVector.filter(v => isNaN(v)).length;
+        if (storedNanCount > 0) {
+          console.error(`❌ Found ${storedNanCount} NaN values in stored embedding ${item.id}!`);
+          return { ...item, similarity: 0 };
+        }
+        
+        const similarity = this.calculateCosineSimilarity(queryEmbedding, embeddingVector);
+        console.log(`✅ Similarity calculated for ${item.id}: ${similarity}`);
         
         return {
           ...item,
@@ -134,82 +152,49 @@ class ChangelogEmbeddingService {
       }).filter(item => {
         const isValid = !isNaN(item.similarity) && isFinite(item.similarity);
         if (!isValid) {
-          console.log(`Filtering out invalid similarity for ${item.id}: ${item.similarity}`);
+          console.log(`⚠️ Filtering out invalid similarity for ${item.id}: ${item.similarity}`);
         }
         return isValid;
       });
 
-      console.log('\n=== SIMILARITY RESULTS ===');
+      console.log('\n=== FINAL SIMILARITY RESULTS ===');
       results.forEach(r => {
-        console.log(`${r.id}: ${r.similarity}`);
+        console.log(`${r.id}: ${r.similarity.toFixed(6)} (${(r.similarity * 100).toFixed(2)}%)`);
       });
 
       // Sort by similarity and return top results
-      const filteredResults = results
+      const sortedResults = results.sort((a, b) => b.similarity - a.similarity);
+      console.log('\n=== SORTED RESULTS (highest first) ===');
+      sortedResults.forEach(r => {
+        console.log(`${r.id}: ${r.similarity.toFixed(6)} (${(r.similarity * 100).toFixed(2)}%)`);
+      });
+
+      const threshold = 0.1;
+      const filteredResults = sortedResults
         .filter(item => {
-          const passes = item.similarity > 0.1;
-          console.log(`${item.id} passes threshold (>0.1): ${passes} (similarity: ${item.similarity})`);
+          const passes = item.similarity > threshold;
+          console.log(`${item.id} passes threshold (>${threshold}): ${passes} (similarity: ${item.similarity.toFixed(6)})`);
           return passes;
         })
-        .sort((a, b) => b.similarity - a.similarity)
         .slice(0, limit);
 
-      console.log(`\nReturning ${filteredResults.length} results:`, 
-        filteredResults.map(r => ({ id: r.id, similarity: r.similarity })));
+      console.log(`\n✅ Returning ${filteredResults.length} results above threshold ${threshold}:`);
+      filteredResults.forEach(r => {
+        console.log(`  - ${r.id}: ${r.similarity.toFixed(6)} (${(r.similarity * 100).toFixed(2)}%)`);
+      });
 
+      console.log('=== SEMANTIC SEARCH DEBUG END ===\n');
       return filteredResults;
     } catch (error) {
-      console.error('Failed to search similar changelogs:', error);
+      console.error('❌ Failed to search similar changelogs:', error);
+      console.error('Error stack:', error.stack);
       return [];
     }
   }
 
-  private debugCosineSimilarity(a: number[], b: number[], itemId: string): number {
-    console.log(`Computing cosine similarity for ${itemId}`);
-    
+  private calculateCosineSimilarity(a: number[], b: number[]): number {
     if (!a || !b || a.length !== b.length) {
-      console.warn(`Invalid vectors for ${itemId}: a=${a?.length}, b=${b?.length}`);
-      return 0;
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    // Check for NaN values in first few elements
-    for (let i = 0; i < Math.min(5, a.length); i++) {
-      if (isNaN(a[i]) || isNaN(b[i])) {
-        console.warn(`NaN detected at index ${i} for ${itemId}: a[${i}]=${a[i]}, b[${i}]=${b[i]}`);
-      }
-    }
-
-    for (let i = 0; i < a.length; i++) {
-      if (isNaN(a[i]) || isNaN(b[i])) {
-        console.warn(`NaN values detected in embeddings for ${itemId} at index ${i}`);
-        return 0;
-      }
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-
-    console.log(`${itemId} - dotProduct: ${dotProduct}, normA: ${normA}, normB: ${normB}`);
-
-    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-    if (denominator === 0) {
-      console.warn(`Zero denominator in cosine similarity for ${itemId}`);
-      return 0;
-    }
-
-    const similarity = dotProduct / denominator;
-    const finalSimilarity = isNaN(similarity) ? 0 : similarity;
-    
-    console.log(`${itemId} - raw similarity: ${similarity}, final: ${finalSimilarity}`);
-    return finalSimilarity;
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (!a || !b || a.length !== b.length) {
+      console.warn('Invalid vectors for cosine similarity calculation');
       return 0;
     }
 
@@ -219,6 +204,7 @@ class ChangelogEmbeddingService {
 
     for (let i = 0; i < a.length; i++) {
       if (isNaN(a[i]) || isNaN(b[i])) {
+        console.warn(`NaN values detected at index ${i}: a[${i}]=${a[i]}, b[${i}]=${b[i]}`);
         return 0;
       }
       dotProduct += a[i] * b[i];
@@ -228,6 +214,7 @@ class ChangelogEmbeddingService {
 
     const denominator = Math.sqrt(normA) * Math.sqrt(normB);
     if (denominator === 0) {
+      console.warn('Zero denominator in cosine similarity calculation');
       return 0;
     }
 
