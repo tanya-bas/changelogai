@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -41,12 +42,18 @@ const Index = () => {
 
   const fetchChangelogs = async () => {
     try {
+      console.log('Fetching changelogs from database...');
       const { data, error } = await supabase
         .from('changelogs')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching changelogs:', error);
+        throw error;
+      }
+      
+      console.log('Fetched changelogs:', data?.map(c => ({ id: c.id, version: c.version })));
       setChangelogs(data || []);
     } catch (error) {
       console.error('Error fetching changelogs:', error);
@@ -103,21 +110,36 @@ const Index = () => {
     }
 
     try {
-      console.log('Deleting changelog with id:', id);
-      const { error } = await supabase
+      console.log('Starting delete process for changelog with id:', id);
+      console.log('Current changelogs before delete:', changelogs.map(c => ({ id: c.id, version: c.version })));
+      
+      const { error, data } = await supabase
         .from('changelogs')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) {
         console.error('Supabase delete error:', error);
         throw error;
       }
 
+      console.log('Delete response data:', data);
       console.log('Successfully deleted from database');
+      
       // Update local state only after successful database deletion
-      setChangelogs(changelogs.filter(changelog => changelog.id !== id));
+      const updatedChangelogs = changelogs.filter(changelog => changelog.id !== id);
+      console.log('Updated local changelogs:', updatedChangelogs.map(c => ({ id: c.id, version: c.version })));
+      setChangelogs(updatedChangelogs);
+      
       toast.success("Changelog deleted successfully!");
+      
+      // Let's also verify the deletion by refetching
+      setTimeout(() => {
+        console.log('Verifying deletion by refetching...');
+        fetchChangelogs();
+      }, 1000);
+      
     } catch (error: any) {
       console.error('Error deleting changelog:', error);
       toast.error("Failed to delete changelog: " + error.message);
