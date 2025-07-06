@@ -9,7 +9,6 @@ import AuthForm from "@/components/AuthForm";
 import { DeveloperHeader } from "@/components/DeveloperHeader";
 import { ChangelogInput } from "@/components/ChangelogInput";
 import { ChangelogOutput } from "@/components/ChangelogOutput";
-import { SemanticSearchSetup } from "@/components/SemanticSearchSetup";
 import { useAutoEmbedding } from "@/hooks/useAutoEmbedding";
 
 const Developer = () => {
