@@ -112,7 +112,7 @@ export const ChangelogOutput = ({
                   <>
                     <Upload className="mr-2 h-4 w-4" />
                     Publish Changelog
-                  </Button>
+                  </>
                 )}
               </Button>
             </div>
