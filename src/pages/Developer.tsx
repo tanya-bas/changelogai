@@ -6,11 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Sparkles, Eye, LogOut, Zap, Brain } from "lucide-react";
+import { ArrowLeft, Sparkles, LogOut, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { changelogGenerator } from "@/services/changelogGenerator";
 import AuthForm from "@/components/AuthForm";
 
 const Developer = () => {
@@ -18,7 +16,6 @@ const Developer = () => {
   const [commits, setCommits] = useState("");
   const [generatedChangelog, setGeneratedChangelog] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [useAdvancedGeneration, setUseAdvancedGeneration] = useState(true);
   const { user, loading, signOut } = useAuth();
 
   if (loading) {
@@ -76,144 +73,72 @@ const Developer = () => {
     return description || 'Miscellaneous updates';
   };
 
-  const generateSimpleChangelog = (commits: string, version: string): string => {
-    console.log('Generating simple changelog for version:', version);
-    console.log('Commits:', commits);
-    
-    const commitLines = commits.split('\n').filter(line => line.trim());
-    console.log('Commit lines:', commitLines);
-    
-    const changes = {
-      features: [] as string[],
-      improvements: [] as string[],
-      fixes: [] as string[]
-    };
-
-    commitLines.forEach(commit => {
-      const lower = commit.toLowerCase();
-      const description = extractChangeDescription(commit);
-      
-      if (lower.includes('feat') || lower.includes('add') || lower.includes('new')) {
-        changes.features.push(description);
-      } else if (lower.includes('fix') || lower.includes('bug') || lower.includes('resolve')) {
-        changes.fixes.push(description);
-      } else {
-        changes.improvements.push(description);
-      }
-    });
-
-    console.log('Categorized changes:', changes);
-
-    let changelog = `## Version ${version}\n\n`;
-    
-    if (changes.features.length > 0) {
-      changelog += "### 🚀 New Features\n";
-      changes.features.forEach(feature => {
-        changelog += `- ${feature}\n`;
-      });
-      changelog += "\n";
-    }
-
-    if (changes.improvements.length > 0) {
-      changelog += "### ⚡ Improvements\n";
-      changes.improvements.forEach(improvement => {
-        changelog += `- ${improvement}\n`;
-      });
-      changelog += "\n";
-    }
-
-    if (changes.fixes.length > 0) {
-      changelog += "### 🐛 Bug Fixes\n";
-      changes.fixes.forEach(fix => {
-        changelog += `- ${fix}\n`;
-      });
-      changelog += "\n";
-    }
-
-    console.log('Generated changelog:', changelog);
-    return changelog;
-  };
-
   const generateChangelog = async () => {
     if (!commits.trim() || !version.trim()) {
       toast.error("Please enter both version and commits");
       return;
     }
 
-    console.log('Starting changelog generation...');
-    console.log('Use advanced generation:', useAdvancedGeneration);
-    console.log('Version:', version);
-    console.log('Commits:', commits);
-
     setIsGenerating(true);
     
     try {
-      let changelog: string;
+      // Simple delay to simulate processing
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      if (useAdvancedGeneration) {
-        console.log('Using advanced generation...');
-        changelog = await changelogGenerator.generateAdvancedChangelog(version, commits);
-        console.log('Advanced changelog result:', changelog);
-        toast.success("AI-powered changelog generated successfully!");
-      } else {
-        console.log('Using simple generation...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        changelog = generateSimpleChangelog(commits, version);
-        console.log('Simple changelog result:', changelog);
-        toast.success("Simple changelog generated successfully!");
+      const commitLines = commits.split('\n').filter(line => line.trim());
+      
+      const changes = {
+        features: [] as string[],
+        improvements: [] as string[],
+        fixes: [] as string[]
+      };
+
+      commitLines.forEach(commit => {
+        const lower = commit.toLowerCase();
+        const description = extractChangeDescription(commit);
+        
+        if (lower.includes('feat') || lower.includes('add') || lower.includes('new')) {
+          changes.features.push(description);
+        } else if (lower.includes('fix') || lower.includes('bug') || lower.includes('resolve')) {
+          changes.fixes.push(description);
+        } else {
+          changes.improvements.push(description);
+        }
+      });
+
+      let changelog = `## Version ${version}\n\n`;
+      
+      if (changes.features.length > 0) {
+        changelog += "### 🚀 New Features\n";
+        changes.features.forEach(feature => {
+          changelog += `- ${feature}\n`;
+        });
+        changelog += "\n";
       }
 
-      console.log('Setting generated changelog state:', changelog);
+      if (changes.improvements.length > 0) {
+        changelog += "### ⚡ Improvements\n";
+        changes.improvements.forEach(improvement => {
+          changelog += `- ${improvement}\n`;
+        });
+        changelog += "\n";
+      }
+
+      if (changes.fixes.length > 0) {
+        changelog += "### 🐛 Bug Fixes\n";
+        changes.fixes.forEach(fix => {
+          changelog += `- ${fix}\n`;
+        });
+        changelog += "\n";
+      }
+
       setGeneratedChangelog(changelog);
+      toast.success("Changelog generated successfully!");
       
     } catch (error: any) {
-      console.error('Error generating changelog:', error);
-      if (error.message.includes('OpenAI API key')) {
-        toast.error("OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.");
-      } else if (error.message.includes('quota exceeded')) {
-        toast.error("OpenAI API quota exceeded. Please check your billing settings or try simple generation.");
-      } else {
-        toast.error(`Failed to generate changelog: ${error.message}`);
-      }
+      toast.error("Failed to generate changelog: " + error.message);
     } finally {
       setIsGenerating(false);
-    }
-  };
-
-  const publishChangelog = async () => {
-    if (!generatedChangelog) {
-      toast.error("Generate a changelog first");
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('changelogs')
-        .insert([
-          {
-            version,
-            content: generatedChangelog,
-            commits: commits,
-            user_id: user.id
-          }
-        ]);
-
-      if (error) {
-        if (error.code === '42P01') {
-          toast.error("Database not set up yet. Please create the changelogs table in Supabase first.");
-        } else {
-          toast.error("Failed to publish changelog: " + error.message);
-        }
-        return;
-      }
-
-      toast.success("Changelog published successfully!");
-      
-      setVersion("");
-      setCommits("");
-      setGeneratedChangelog("");
-    } catch (error: any) {
-      toast.error("Failed to publish changelog: " + error.message);
     }
   };
 
@@ -261,7 +186,7 @@ const Developer = () => {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-4">Generate Your Changelog</h1>
             <p className="text-lg text-slate-600">
-              AI-powered changelog generation using OpenAI's language models for accurate, context-aware descriptions
+              Transform your commit messages into beautiful, user-friendly changelogs
             </p>
           </div>
 
@@ -292,44 +217,12 @@ const Developer = () => {
 feat(auth): add OAuth integration
 fix: resolve dashboard loading issue
 perf: optimize database queries
-feat(ui): improve mobile responsiveness
-BREAKING CHANGE: update API endpoint structure`}
+feat(ui): improve mobile responsiveness`}
                     className="min-h-[300px]"
                     value={commits}
                     onChange={(e) => setCommits(e.target.value)}
                   />
                 </div>
-
-                <div className="flex items-center space-x-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <input
-                    type="checkbox"
-                    id="advanced-generation"
-                    checked={useAdvancedGeneration}
-                    onChange={(e) => setUseAdvancedGeneration(e.target.checked)}
-                    className="rounded"
-                  />
-                  <Label htmlFor="advanced-generation" className="flex items-center space-x-2 cursor-pointer">
-                    <Brain className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-900">
-                      Use AI-Powered Generation (OpenAI GPT-4)
-                    </span>
-                  </Label>
-                </div>
-                
-                {useAdvancedGeneration && (
-                  <div className="text-xs text-blue-700 bg-blue-50 p-3 rounded border border-blue-200">
-                    <div className="font-medium mb-1">AI Features:</div>
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>Intelligent parsing and understanding of commits</li>
-                      <li>Context-aware descriptions based on previous releases</li>
-                      <li>Accurate categorization without fabricating details</li>
-                      <li>Professional formatting inspired by major tech companies</li>
-                    </ul>
-                    <div className="mt-2 text-amber-700 bg-amber-50 p-2 rounded">
-                      ⚠️ Requires VITE_OPENAI_API_KEY environment variable
-                    </div>
-                  </div>
-                )}
 
                 <Button 
                   onClick={generateChangelog} 
@@ -343,12 +236,8 @@ BREAKING CHANGE: update API endpoint structure`}
                     </>
                   ) : (
                     <>
-                      {useAdvancedGeneration ? (
-                        <Zap className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Sparkles className="mr-2 h-4 w-4" />
-                      )}
-                      Generate {useAdvancedGeneration ? 'AI-Powered' : 'Simple'} Changelog
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Generate Changelog
                     </>
                   )}
                 </Button>
@@ -359,7 +248,7 @@ BREAKING CHANGE: update API endpoint structure`}
               <CardHeader>
                 <CardTitle>Generated Changelog</CardTitle>
                 <CardDescription>
-                  AI-generated user-friendly changelog
+                  Your user-friendly changelog
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -370,17 +259,20 @@ BREAKING CHANGE: update API endpoint structure`}
                         {generatedChangelog}
                       </pre>
                     </div>
-                    <Button onClick={publishChangelog} className="w-full">
-                      Publish to Public Changelog
+                    <Button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedChangelog);
+                        toast.success("Changelog copied to clipboard!");
+                      }} 
+                      className="w-full"
+                    >
+                      Copy to Clipboard
                     </Button>
                   </div>
                 ) : (
                   <div className="text-center py-12 text-slate-500">
                     <Sparkles className="mx-auto h-12 w-12 mb-4 text-slate-300" />
                     <p>Your generated changelog will appear here</p>
-                    <div className="mt-4 text-xs text-slate-400">
-                      Current state: {generatedChangelog === "" ? "Empty string" : "Not empty"}
-                    </div>
                   </div>
                 )}
               </CardContent>
