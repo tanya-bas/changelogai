@@ -1,9 +1,9 @@
 
-import { pipeline, Pipeline } from '@huggingface/transformers';
+import { pipeline } from '@huggingface/transformers';
 
 class EmbeddingService {
   private static instance: EmbeddingService;
-  private embeddingPipeline: Pipeline | null = null;
+  private embeddingPipeline: any = null;
   private isInitialized = false;
 
   private constructor() {}
@@ -39,7 +39,7 @@ class EmbeddingService {
     }
 
     try {
-      const result = await this.embeddingPipeline!(text, {
+      const result = await this.embeddingPipeline(text, {
         pooling: 'mean',
         normalize: true
       });
@@ -58,7 +58,7 @@ class EmbeddingService {
     }
 
     try {
-      const result = await this.embeddingPipeline!(texts, {
+      const result = await this.embeddingPipeline(texts, {
         pooling: 'mean',
         normalize: true
       });
