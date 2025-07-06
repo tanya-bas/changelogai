@@ -8,8 +8,7 @@ Transform your commit history into beautiful, user-friendly changelogs in second
 ### Developer Tool
 - **Smart Commit Parsing**: Automatically categorizes commits into Features, Improvements, and Bug Fixes
 - **AI-Powered Summaries**: Converts technical commit messages into user-friendly descriptions
-- **One-Click Publishing**: Generate and publish changelogs instantly
-- **Real-time Preview**: See your changelog before publishing
+- **Real-time Preview**: Seeand edit your changelog before publishing
 
 ### Public Changelog
 - **Clean Design**: Beautiful, responsive changelog display
@@ -38,7 +37,7 @@ Transform your commit history into beautiful, user-friendly changelogs in second
 ## 🎨 Design Philosophy
 
 ### Developer-First Experience
-- **Minimal Setup**: No configuration required - just paste and generate
+- **Minimal Setup**: Simple interface - just paste and generate
 - **Familiar Patterns**: Uses common developer workflows (version numbers, commit messages)
 - **Fast Feedback**: Immediate results with visual confirmation
 
