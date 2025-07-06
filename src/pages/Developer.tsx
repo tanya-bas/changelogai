@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useChangelogGenerator } from "@/hooks/useChangelogGenerator";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import AuthForm from "@/components/AuthForm";
 import { DeveloperHeader } from "@/components/DeveloperHeader";
 import { ChangelogInput } from "@/components/ChangelogInput";
@@ -12,6 +14,7 @@ import { ChangelogOutput } from "@/components/ChangelogOutput";
 const Developer = () => {
   const [version, setVersion] = useState("");
   const [commits, setCommits] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
   const { user, loading } = useAuth();
   const {
     generatedChangelog,
@@ -19,6 +22,43 @@ const Developer = () => {
     isModelLoading,
     generateChangelog
   } = useChangelogGenerator();
+
+  const handleGenerate = () => {
+    generateChangelog(version, commits);
+  };
+
+  const handlePublish = async (changelog: string) => {
+    if (!version.trim() || !changelog.trim()) {
+      toast.error("Please ensure both version and changelog are provided");
+      return;
+    }
+
+    setIsPublishing(true);
+    
+    try {
+      const { error } = await supabase
+        .from('changelogs')
+        .insert({
+          version: version.trim(),
+          content: changelog,
+          commits: commits
+        });
+
+      if (error) throw error;
+
+      toast.success("Changelog published successfully!");
+      
+      // Reset the form
+      setVersion("");
+      setCommits("");
+      
+    } catch (error: any) {
+      console.error('Error publishing changelog:', error);
+      toast.error("Failed to publish changelog: " + error.message);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -62,10 +102,6 @@ const Developer = () => {
     );
   }
 
-  const handleGenerate = () => {
-    generateChangelog(version, commits);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <DeveloperHeader />
@@ -90,7 +126,13 @@ const Developer = () => {
               isModelLoading={isModelLoading}
             />
 
-            <ChangelogOutput generatedChangelog={generatedChangelog} />
+            <ChangelogOutput 
+              generatedChangelog={generatedChangelog}
+              version={version}
+              commits={commits}
+              onPublish={handlePublish}
+              isPublishing={isPublishing}
+            />
           </div>
         </div>
       </div>

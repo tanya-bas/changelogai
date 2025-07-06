@@ -1,17 +1,53 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Sparkles, Edit, Save, Copy, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 interface ChangelogOutputProps {
   generatedChangelog: string;
+  version: string;
+  commits: string;
+  onPublish: (changelog: string) => void;
+  isPublishing: boolean;
 }
 
-export const ChangelogOutput = ({ generatedChangelog }: ChangelogOutputProps) => {
+export const ChangelogOutput = ({ 
+  generatedChangelog, 
+  version, 
+  commits, 
+  onPublish,
+  isPublishing 
+}: ChangelogOutputProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedChangelog, setEditedChangelog] = useState(generatedChangelog);
+
+  // Update edited changelog when generated changelog changes
+  useState(() => {
+    setEditedChangelog(generatedChangelog);
+  }, [generatedChangelog]);
+
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedChangelog);
+    const textToCopy = isEditing ? editedChangelog : generatedChangelog;
+    navigator.clipboard.writeText(textToCopy);
     toast.success("Changelog copied to clipboard!");
+  };
+
+  const handleEdit = () => {
+    setEditedChangelog(generatedChangelog);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    setIsEditing(false);
+    toast.success("Changes saved!");
+  };
+
+  const handlePublish = () => {
+    const changelogToPublish = isEditing ? editedChangelog : generatedChangelog;
+    onPublish(changelogToPublish);
   };
 
   return (
@@ -26,16 +62,56 @@ export const ChangelogOutput = ({ generatedChangelog }: ChangelogOutputProps) =>
         {generatedChangelog ? (
           <div className="space-y-4">
             <div className="bg-slate-50 p-4 rounded-lg border">
-              <pre className="whitespace-pre-wrap text-sm text-slate-700">
-                {generatedChangelog}
-              </pre>
+              {isEditing ? (
+                <Textarea
+                  value={editedChangelog}
+                  onChange={(e) => setEditedChangelog(e.target.value)}
+                  className="min-h-[300px] bg-white"
+                  placeholder="Edit your changelog..."
+                />
+              ) : (
+                <pre className="whitespace-pre-wrap text-sm text-slate-700">
+                  {editedChangelog || generatedChangelog}
+                </pre>
+              )}
             </div>
-            <Button 
-              onClick={copyToClipboard} 
-              className="w-full"
-            >
-              Copy to Clipboard
-            </Button>
+            
+            <div className="flex gap-2">
+              {isEditing ? (
+                <Button onClick={handleSaveEdit} className="flex-1">
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </Button>
+              ) : (
+                <Button onClick={handleEdit} variant="outline" className="flex-1">
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              )}
+              
+              <Button onClick={copyToClipboard} variant="outline" className="flex-1">
+                <Copy className="mr-2 h-4 w-4" />
+                Copy
+              </Button>
+              
+              <Button 
+                onClick={handlePublish} 
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                disabled={isPublishing}
+              >
+                {isPublishing ? (
+                  <>
+                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    Publishing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Publish Changelog
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="text-center py-12 text-slate-500">
