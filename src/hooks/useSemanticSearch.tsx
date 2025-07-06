@@ -13,7 +13,7 @@ interface ChangelogEntry {
   product?: string;
 }
 
-export const useSemanticSearch = () => {
+const useSemanticSearch = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<string>("");
 
@@ -97,3 +97,5 @@ export const useSemanticSearch = () => {
     setSearchResult
   };
 };
+
+export default useSemanticSearch;

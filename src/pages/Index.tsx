@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Wrench, Edit, Trash2, Save, X, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useSemanticSearch } from "@/hooks/useSemanticSearch";
+import useSemanticSearch from "@/hooks/useSemanticSearch";
 import { SemanticSearch } from "@/components/SemanticSearch";
 import { toast } from "sonner";
 
