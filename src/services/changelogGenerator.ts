@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import OpenAI from 'openai';
 
@@ -94,8 +95,14 @@ export class AdvancedChangelogGenerator {
   }
 
   private async generateWithLLM(commits: string, version: string, context: ChangelogContext): Promise<string> {
+    console.log('🔧 Starting LLM generation...');
+    console.log('API Key available:', !!import.meta.env.VITE_OPENAI_API_KEY);
+    console.log('Commits to process:', commits);
+    
     if (!import.meta.env.VITE_OPENAI_API_KEY) {
-      throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY in your environment variables.');
+      const error = 'OpenAI API key not configured. Please set VITE_OPENAI_API_KEY in your environment variables.';
+      console.error('❌', error);
+      throw new Error(error);
     }
 
     const contextInfo = context.previousVersions.length > 0 
@@ -123,7 +130,7 @@ Format as markdown with:
 - Bullet points for each change
 - Keep it concise but informative${contextInfo}`;
 
-    console.log('Sending prompt to OpenAI:', prompt);
+    console.log('📤 Sending prompt to OpenAI...');
 
     try {
       const completion = await this.openai.chat.completions.create({
@@ -143,18 +150,34 @@ Format as markdown with:
       });
 
       const generated = completion.choices[0]?.message?.content;
+      console.log('📥 OpenAI response received:', !!generated);
+      console.log('Generated content length:', generated?.length || 0);
+      
       if (!generated) {
-        throw new Error('No content generated from OpenAI');
+        const error = 'No content generated from OpenAI';
+        console.error('❌', error);
+        throw new Error(error);
       }
 
-      console.log('Generated changelog:', generated);
+      console.log('✅ Generated changelog successfully');
       return generated;
     } catch (error: any) {
-      console.error('OpenAI API error:', error);
+      console.error('❌ OpenAI API error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        type: error.type,
+        status: error.status
+      });
+      
       if (error.code === 'insufficient_quota') {
         throw new Error('OpenAI API quota exceeded. Please check your billing settings.');
       } else if (error.code === 'invalid_api_key') {
         throw new Error('Invalid OpenAI API key. Please check your VITE_OPENAI_API_KEY environment variable.');
+      } else if (error.status === 401) {
+        throw new Error('OpenAI API authentication failed. Please verify your API key is correct.');
+      } else if (error.status === 429) {
+        throw new Error('OpenAI API rate limit exceeded. Please try again in a moment.');
       } else {
         throw new Error(`OpenAI API error: ${error.message}`);
       }
@@ -163,6 +186,8 @@ Format as markdown with:
 
   // Keep the simple generation as fallback
   private generateSimpleChangelog(commits: string, version: string): string {
+    console.log('🔄 Using simple changelog generation as fallback');
+    
     const commitLines = commits.split('\n').filter(line => line.trim());
     const changes = {
       features: [] as string[],
@@ -207,6 +232,7 @@ Format as markdown with:
       changelog += "\n";
     }
 
+    console.log('📝 Simple changelog generated, length:', changelog.length);
     return changelog;
   }
 
@@ -224,18 +250,29 @@ Format as markdown with:
   }
 
   public async generateAdvancedChangelog(version: string, commitMessages: string): Promise<string> {
-    console.log('Generating advanced changelog for version:', version);
+    console.log('🚀 Starting advanced changelog generation for version:', version);
+    console.log('📝 Commit messages length:', commitMessages.length);
+    
+    if (!commitMessages || commitMessages.trim().length === 0) {
+      console.log('⚠️ No commit messages provided, using placeholder');
+      return this.generateSimpleChangelog('No commits provided', version);
+    }
     
     try {
       const context = await this.getChangelogContext();
+      console.log('📚 Context loaded, previous versions:', context.previousVersions.length);
       
       // Try LLM-based generation first
-      return await this.generateWithLLM(commitMessages, version, context);
+      const result = await this.generateWithLLM(commitMessages, version, context);
+      console.log('✅ Advanced generation completed successfully');
+      return result;
     } catch (error: any) {
-      console.error('Advanced generation failed, falling back to simple generation:', error);
+      console.error('❌ Advanced generation failed, falling back to simple generation:', error.message);
       
       // Fallback to simple generation if LLM fails
-      return this.generateSimpleChangelog(commitMessages, version);
+      const fallbackResult = this.generateSimpleChangelog(commitMessages, version);
+      console.log('🔄 Fallback generation completed');
+      return fallbackResult;
     }
   }
 }
