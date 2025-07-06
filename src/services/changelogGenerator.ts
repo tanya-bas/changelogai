@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import OpenAI from 'openai';
 
 export interface CommitAnalysis {
   type: 'feat' | 'fix' | 'perf' | 'refactor' | 'docs' | 'style' | 'test' | 'chore';
@@ -6,9 +7,6 @@ export interface CommitAnalysis {
   description: string;
   breakingChange: boolean;
   impact: 'major' | 'minor' | 'patch';
-  enhancedDescription?: string;
-  businessImpact?: string;
-  technicalDetails?: string;
 }
 
 export interface ChangelogContext {
@@ -24,7 +22,17 @@ export interface ChangelogContext {
 }
 
 export class AdvancedChangelogGenerator {
-  private async getChangelogContext(limit = 5): Promise<ChangelogContext> {
+  private openai: OpenAI;
+
+  constructor() {
+    // Initialize OpenAI - user will need to set VITE_OPENAI_API_KEY
+    this.openai = new OpenAI({
+      apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true // Required for client-side usage
+    });
+  }
+
+  private async getChangelogContext(limit = 3): Promise<ChangelogContext> {
     try {
       const { data: previousChangelogs, error } = await supabase
         .from('changelogs')
@@ -43,9 +51,7 @@ export class AdvancedChangelogGenerator {
         date: log.created_at
       }));
 
-      // Analyze trends from previous changelogs
       const recentTrends = this.analyzeTrends(previousVersions);
-
       return { previousVersions, recentTrends };
     } catch (error) {
       console.error('Error getting changelog context:', error);
@@ -57,10 +63,12 @@ export class AdvancedChangelogGenerator {
     const focusAreas: string[] = [];
     const commonPatterns: string[] = [];
 
-    // Extract common themes from previous changelogs
+    if (previousVersions.length === 0) {
+      return { focusAreas, commonPatterns };
+    }
+
     const allContent = previousVersions.map(v => v.content.toLowerCase()).join(' ');
     
-    // Common focus areas in tech companies
     const techFocusAreas = [
       'security', 'performance', 'user experience', 'api', 'dashboard',
       'mobile', 'integration', 'authentication', 'data', 'analytics'
@@ -72,7 +80,6 @@ export class AdvancedChangelogGenerator {
       }
     });
 
-    // Common patterns
     if (allContent.includes('fix') || allContent.includes('bug')) {
       commonPatterns.push('bug-fixes');
     }
@@ -86,347 +93,150 @@ export class AdvancedChangelogGenerator {
     return { focusAreas: focusAreas.slice(0, 3), commonPatterns };
   }
 
-  private enhanceCommitDescription(commit: CommitAnalysis): CommitAnalysis {
-    const originalDesc = commit.description.toLowerCase();
-    
-    // Business impact patterns
-    const businessImpactMap: Record<string, string> = {
-      'login': 'Improves user authentication experience and security',
-      'dashboard': 'Enhances user productivity and data visibility',
-      'performance': 'Reduces load times and improves user experience',
-      'api': 'Streamlines integration capabilities for developers',
-      'mobile': 'Optimizes experience for mobile users',
-      'search': 'Helps users find information more efficiently',
-      'notification': 'Keeps users informed with timely updates',
-      'export': 'Enables better data portability and reporting',
-      'upload': 'Simplifies file management workflows',
-      'filter': 'Allows users to find relevant content faster',
-      'sort': 'Improves data organization and accessibility',
-      'validation': 'Prevents errors and improves data quality',
-      'cache': 'Delivers faster response times across the platform',
-      'database': 'Ensures reliable data storage and retrieval',
-      'security': 'Strengthens platform security and user privacy',
-      'oauth': 'Simplifies login process with social authentication',
-      'sso': 'Streamlines access management for enterprise users',
-      'analytics': 'Provides better insights into user behavior and trends'
-    };
-
-    // Technical enhancement patterns
-    const technicalEnhancementMap: Record<string, string> = {
-      'refactor': 'Code restructuring improves maintainability and performance',
-      'optimize': 'Algorithm improvements reduce resource usage',
-      'migrate': 'Infrastructure updates ensure better scalability',
-      'typescript': 'Type safety improvements reduce runtime errors',
-      'test': 'Expanded test coverage ensures reliability',
-      'eslint': 'Code quality improvements maintain consistency',
-      'webpack': 'Build optimization reduces bundle size',
-      'react': 'Component updates leverage latest framework features',
-      'api endpoint': 'Backend improvements enhance data processing',
-      'database query': 'Query optimization improves response times',
-      'memory leak': 'Memory management fixes ensure stable performance',
-      'concurrent': 'Parallel processing improvements boost throughput'
-    };
-
-    // Context-aware enhancement based on commit type and content
-    let enhancedDescription = commit.description;
-    let businessImpact = '';
-    let technicalDetails = '';
-
-    // Find relevant business impact
-    Object.entries(businessImpactMap).forEach(([keyword, impact]) => {
-      if (originalDesc.includes(keyword)) {
-        businessImpact = impact;
-      }
-    });
-
-    // Find relevant technical details
-    Object.entries(technicalEnhancementMap).forEach(([keyword, detail]) => {
-      if (originalDesc.includes(keyword)) {
-        technicalDetails = detail;
-      }
-    });
-
-    // Generate enhanced descriptions based on commit type
-    switch (commit.type) {
-      case 'feat':
-        if (originalDesc.includes('auth') || originalDesc.includes('login')) {
-          enhancedDescription = `Introduced ${commit.scope ? `${commit.scope} ` : ''}authentication system with secure token management and session handling`;
-          businessImpact = businessImpact || 'Users can now securely access their accounts with improved login experience';
-          technicalDetails = technicalDetails || 'Implements JWT-based authentication with automatic token refresh';
-        } else if (originalDesc.includes('dashboard') || originalDesc.includes('ui')) {
-          enhancedDescription = `Enhanced ${commit.scope ? `${commit.scope} ` : ''}user interface with improved navigation and visual design`;
-          businessImpact = businessImpact || 'Users benefit from a more intuitive and efficient workflow';
-          technicalDetails = technicalDetails || 'Modern React components with responsive design patterns';
-        } else if (originalDesc.includes('api') || originalDesc.includes('endpoint')) {
-          enhancedDescription = `Expanded API capabilities with new ${commit.scope ? `${commit.scope} ` : ''}endpoints for enhanced functionality`;
-          businessImpact = businessImpact || 'Developers can integrate new features into their applications';
-          technicalDetails = technicalDetails || 'RESTful API design with comprehensive error handling';
-        } else {
-          enhancedDescription = `Added ${commit.scope ? `${commit.scope} ` : ''}functionality: ${commit.description.toLowerCase()}`;
-          businessImpact = businessImpact || 'Expands platform capabilities for improved user productivity';
-        }
-        break;
-
-      case 'fix':
-        if (originalDesc.includes('crash') || originalDesc.includes('error')) {
-          enhancedDescription = `Resolved critical ${commit.scope ? `${commit.scope} ` : ''}stability issue that could cause application crashes`;
-          businessImpact = businessImpact || 'Users experience more reliable application performance';
-          technicalDetails = technicalDetails || 'Improved error handling and exception management';
-        } else if (originalDesc.includes('memory') || originalDesc.includes('leak')) {
-          enhancedDescription = `Fixed ${commit.scope ? `${commit.scope} ` : ''}memory management issue preventing resource leaks`;
-          businessImpact = businessImpact || 'Application runs more smoothly with better resource utilization';
-          technicalDetails = technicalDetails || 'Optimized memory allocation and garbage collection';
-        } else if (originalDesc.includes('security') || originalDesc.includes('vulnerability')) {
-          enhancedDescription = `Patched ${commit.scope ? `${commit.scope} ` : ''}security vulnerability to protect user data`;
-          businessImpact = businessImpact || 'Enhanced security protects user information and privacy';
-          technicalDetails = technicalDetails || 'Applied security best practices and input validation';
-        } else {
-          enhancedDescription = `Corrected ${commit.scope ? `${commit.scope} ` : ''}issue: ${commit.description.toLowerCase()}`;
-          businessImpact = businessImpact || 'Improves application reliability and user experience';
-        }
-        break;
-
-      case 'perf':
-        if (originalDesc.includes('database') || originalDesc.includes('query')) {
-          enhancedDescription = `Optimized ${commit.scope ? `${commit.scope} ` : ''}database queries for faster data retrieval`;
-          businessImpact = businessImpact || 'Users experience significantly faster page load times';
-          technicalDetails = technicalDetails || 'Implemented query optimization and database indexing';
-        } else if (originalDesc.includes('bundle') || originalDesc.includes('build')) {
-          enhancedDescription = `Reduced application ${commit.scope ? `${commit.scope} ` : ''}bundle size through build optimization`;
-          businessImpact = businessImpact || 'Faster initial page loads, especially on slower connections';
-          technicalDetails = technicalDetails || 'Code splitting and tree shaking improvements';
-        } else {
-          enhancedDescription = `Enhanced ${commit.scope ? `${commit.scope} ` : ''}performance: ${commit.description.toLowerCase()}`;
-          businessImpact = businessImpact || 'Delivers faster response times and smoother interactions';
-        }
-        break;
-
-      case 'refactor':
-        enhancedDescription = `Restructured ${commit.scope ? `${commit.scope} ` : ''}codebase for improved maintainability: ${commit.description.toLowerCase()}`;
-        businessImpact = businessImpact || 'Enables faster feature development and more reliable updates';
-        technicalDetails = technicalDetails || 'Code organization improvements following best practices';
-        break;
-
-      default:
-        enhancedDescription = commit.description;
+  private async generateWithLLM(commits: string, version: string, context: ChangelogContext): Promise<string> {
+    if (!import.meta.env.VITE_OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY in your environment variables.');
     }
 
-    return {
-      ...commit,
-      enhancedDescription,
-      businessImpact,
-      technicalDetails
-    };
-  }
+    const contextInfo = context.previousVersions.length > 0 
+      ? `\n\nPrevious release context:\n${context.previousVersions.slice(0, 2).map(v => `${v.version}: ${v.content.substring(0, 200)}...`).join('\n')}`
+      : '';
 
-  private analyzeCommits(commits: string[]): CommitAnalysis[] {
-    const basicAnalysis = commits.map(commit => {
-      const trimmed = commit.trim();
-      if (!trimmed) return null;
+    const prompt = `You are a technical writer creating a changelog for version ${version}. Convert these raw commit messages into a professional, user-friendly changelog.
 
-      const conventionalRegex = /^(feat|fix|perf|refactor|docs|style|test|chore)(\(([^)]+)\))?: (.+)$/i;
-      const match = trimmed.match(conventionalRegex);
+Raw commits:
+${commits}
 
-      let type: CommitAnalysis['type'] = 'chore';
-      let scope: string | undefined;
-      let description = trimmed;
-      let breakingChange = false;
+Requirements:
+- Be SPECIFIC about what was actually changed (don't be generic)
+- Don't add technical details not mentioned in the commits
+- If bugs were fixed, explicitly mention that
+- Use clear, concise language that users can understand
+- Categorize changes appropriately (🚀 New Features, 🐛 Bug Fixes, ⚡ Performance, etc.)
+- Keep descriptions focused on user benefits
+- Don't fabricate implementation details
+- If it mentions specific integrations (like "Google auth"), be specific about that
 
-      if (match) {
-        type = match[1].toLowerCase() as CommitAnalysis['type'];
-        scope = match[3];
-        description = match[4];
-        breakingChange = trimmed.includes('BREAKING CHANGE') || trimmed.includes('!:');
-      } else {
-        const lower = trimmed.toLowerCase();
-        if (lower.includes('feat') || lower.includes('add') || lower.includes('new')) {
-          type = 'feat';
-        } else if (lower.includes('fix') || lower.includes('bug') || lower.includes('resolve')) {
-          type = 'fix';
-        } else if (lower.includes('perf') || lower.includes('optimize')) {
-          type = 'perf';
-        } else if (lower.includes('refactor') || lower.includes('restructure')) {
-          type = 'refactor';
-        }
-        
-        description = description
-          .replace(/^(feat|fix|add|new|bug|resolve|perf|optimize|refactor)(\(.+\))?:\s*/i, '')
-          .replace(/^Merge .+/, 'Code integration')
-          .trim();
-      }
+Format as markdown with:
+- ## Version ${version} header
+- Category sections with appropriate emojis
+- Bullet points for each change
+- Keep it concise but informative${contextInfo}`;
 
-      let impact: CommitAnalysis['impact'] = 'patch';
-      if (type === 'feat' || breakingChange) {
-        impact = breakingChange ? 'major' : 'minor';
-      } else if (type === 'perf') {
-        impact = 'minor';
-      }
+    console.log('Sending prompt to OpenAI:', prompt);
 
-      return {
-        type,
-        scope,
-        description: description.charAt(0).toUpperCase() + description.slice(1),
-        breakingChange,
-        impact
-      };
-    }).filter(Boolean) as CommitAnalysis[];
-
-    // Enhance each commit with detailed descriptions
-    return basicAnalysis.map(commit => this.enhanceCommitDescription(commit));
-  }
-
-  private generateContextualIntro(version: string, context: ChangelogContext, commits: CommitAnalysis[]): string {
-    const hasBreakingChanges = commits.some(c => c.breakingChange);
-    const featureCount = commits.filter(c => c.type === 'feat').length;
-    const fixCount = commits.filter(c => c.type === 'fix').length;
-    const perfImprovements = commits.filter(c => c.type === 'perf').length;
-
-    let intro = `## Version ${version}\n\n`;
-
-    // Add contextual introduction based on previous releases
-    if (hasBreakingChanges) {
-      intro += `⚠️ **Breaking Changes**: This release includes breaking changes. Please review the migration guide below.\n\n`;
-    }
-
-    // Generate contextual summary
-    const summaryParts = [];
-    if (featureCount > 0) {
-      summaryParts.push(`${featureCount} new feature${featureCount > 1 ? 's' : ''}`);
-    }
-    if (fixCount > 0) {
-      summaryParts.push(`${fixCount} bug fix${fixCount > 1 ? 'es' : ''}`);
-    }
-    if (perfImprovements > 0) {
-      summaryParts.push(`${perfImprovements} performance improvement${perfImprovements > 1 ? 's' : ''}`);
-    }
-
-    if (summaryParts.length > 0) {
-      const summary = summaryParts.join(', ').replace(/, ([^,]*)$/, ', and $1');
-      intro += `This release brings ${summary}, continuing our focus on ${context.recentTrends.focusAreas.join(' and ') || 'product excellence'}.\n\n`;
-    }
-
-    return intro;
-  }
-
-  private categorizeAndFormatChanges(commits: CommitAnalysis[]): string {
-    let output = '';
-
-    const categories = [
-      { type: 'feat', title: '🚀 New Features', emoji: '✨' },
-      { type: 'perf', title: '⚡ Performance Improvements', emoji: '🔥' },
-      { type: 'fix', title: '🐛 Bug Fixes', emoji: '🔧' },
-      { type: 'refactor', title: '🔄 Code Improvements', emoji: '♻️' },
-      { type: 'docs', title: '📚 Documentation', emoji: '📖' },
-      { type: 'style', title: '💅 UI/UX Improvements', emoji: '🎨' }
-    ];
-
-    // Breaking changes first
-    const breakingChanges = commits.filter(c => c.breakingChange);
-    if (breakingChanges.length > 0) {
-      output += `### ⚠️ Breaking Changes\n\n`;
-      breakingChanges.forEach(commit => {
-        const scopeText = commit.scope ? `**${commit.scope}**: ` : '';
-        output += `- ${scopeText}${commit.enhancedDescription || commit.description}\n`;
-        if (commit.businessImpact) {
-          output += `  - *Impact*: ${commit.businessImpact}\n`;
-        }
-        if (commit.technicalDetails) {
-          output += `  - *Technical*: ${commit.technicalDetails}\n`;
-        }
-        output += '\n';
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional technical writer specializing in creating clear, accurate changelogs. You focus on being specific and accurate, never adding details that weren't mentioned in the source material."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 1000,
+        temperature: 0.3 // Lower temperature for more consistent, factual output
       });
+
+      const generated = completion.choices[0]?.message?.content;
+      if (!generated) {
+        throw new Error('No content generated from OpenAI');
+      }
+
+      console.log('Generated changelog:', generated);
+      return generated;
+    } catch (error: any) {
+      console.error('OpenAI API error:', error);
+      if (error.code === 'insufficient_quota') {
+        throw new Error('OpenAI API quota exceeded. Please check your billing settings.');
+      } else if (error.code === 'invalid_api_key') {
+        throw new Error('Invalid OpenAI API key. Please check your VITE_OPENAI_API_KEY environment variable.');
+      } else {
+        throw new Error(`OpenAI API error: ${error.message}`);
+      }
     }
+  }
 
-    // Regular categories with enhanced formatting
-    categories.forEach(category => {
-      const categoryCommits = commits.filter(c => c.type === category.type && !c.breakingChange);
-      if (categoryCommits.length > 0) {
-        output += `### ${category.title}\n\n`;
-        
-        const byScope = categoryCommits.reduce((acc, commit) => {
-          const scope = commit.scope || 'general';
-          if (!acc[scope]) acc[scope] = [];
-          acc[scope].push(commit);
-          return acc;
-        }, {} as Record<string, CommitAnalysis[]>);
+  // Keep the simple generation as fallback
+  private generateSimpleChangelog(commits: string, version: string): string {
+    const commitLines = commits.split('\n').filter(line => line.trim());
+    const changes = {
+      features: [] as string[],
+      improvements: [] as string[],
+      fixes: [] as string[]
+    };
 
-        Object.entries(byScope).forEach(([scope, scopeCommits]) => {
-          if (scope !== 'general' && Object.keys(byScope).length > 1) {
-            output += `#### ${scope.charAt(0).toUpperCase() + scope.slice(1)}\n\n`;
-          }
-          
-          scopeCommits.forEach(commit => {
-            const prefix = scope === 'general' && Object.keys(byScope).length > 1 ? 
-              (commit.scope ? `**${commit.scope}**: ` : '') : '';
-            
-            // Use enhanced description if available
-            const mainDescription = commit.enhancedDescription || commit.description;
-            output += `- ${category.emoji} ${prefix}${mainDescription}\n`;
-            
-            // Add business impact and technical details
-            if (commit.businessImpact && category.type !== 'docs') {
-              output += `  - *User Benefit*: ${commit.businessImpact}\n`;
-            }
-            if (commit.technicalDetails && (category.type === 'perf' || category.type === 'refactor' || category.type === 'fix')) {
-              output += `  - *Technical Details*: ${commit.technicalDetails}\n`;
-            }
-            output += '\n';
-          });
-          
-          if (scope !== 'general' && Object.keys(byScope).length > 1) {
-            output += '\n';
-          }
-        });
+    commitLines.forEach(commit => {
+      const lower = commit.toLowerCase();
+      if (lower.includes('feat') || lower.includes('add') || lower.includes('new')) {
+        changes.features.push(this.extractChangeDescription(commit));
+      } else if (lower.includes('fix') || lower.includes('bug') || lower.includes('resolve')) {
+        changes.fixes.push(this.extractChangeDescription(commit));
+      } else {
+        changes.improvements.push(this.extractChangeDescription(commit));
       }
     });
 
-    return output;
+    let changelog = `## Version ${version}\n\n`;
+    
+    if (changes.features.length > 0) {
+      changelog += "### 🚀 New Features\n";
+      changes.features.forEach(feature => {
+        changelog += `- ${feature}\n`;
+      });
+      changelog += "\n";
+    }
+
+    if (changes.improvements.length > 0) {
+      changelog += "### ⚡ Improvements\n";
+      changes.improvements.forEach(improvement => {
+        changelog += `- ${improvement}\n`;
+      });
+      changelog += "\n";
+    }
+
+    if (changes.fixes.length > 0) {
+      changelog += "### 🐛 Bug Fixes\n";
+      changes.fixes.forEach(fix => {
+        changelog += `- ${fix}\n`;
+      });
+      changelog += "\n";
+    }
+
+    return changelog;
+  }
+
+  private extractChangeDescription(commit: string): string {
+    let description = commit
+      .replace(/^(feat|fix|chore|docs|style|refactor|test)(\(.+\))?:\s*/i, '')
+      .replace(/^Merge .+/, '')
+      .trim();
+    
+    if (description) {
+      description = description.charAt(0).toUpperCase() + description.slice(1);
+    }
+    
+    return description || 'Miscellaneous updates';
   }
 
   public async generateAdvancedChangelog(version: string, commitMessages: string): Promise<string> {
     console.log('Generating advanced changelog for version:', version);
     
-    const context = await this.getChangelogContext();
-    const commitLines = commitMessages.split('\n').filter(line => line.trim());
-    const analyzedCommits = this.analyzeCommits(commitLines);
-    
-    if (analyzedCommits.length === 0) {
-      return `## Version ${version}\n\nNo changes recorded for this version.`;
+    try {
+      const context = await this.getChangelogContext();
+      
+      // Try LLM-based generation first
+      return await this.generateWithLLM(commitMessages, version, context);
+    } catch (error: any) {
+      console.error('Advanced generation failed, falling back to simple generation:', error);
+      
+      // Fallback to simple generation if LLM fails
+      return this.generateSimpleChangelog(commitMessages, version);
     }
-
-    let changelog = this.generateContextualIntro(version, context, analyzedCommits);
-    changelog += this.categorizeAndFormatChanges(analyzedCommits);
-    
-    // Enhanced footer with more context
-    const totalChanges = analyzedCommits.length;
-    const hasBreaking = analyzedCommits.some(c => c.breakingChange);
-    const featCount = analyzedCommits.filter(c => c.type === 'feat').length;
-    const perfCount = analyzedCommits.filter(c => c.type === 'perf').length;
-    
-    changelog += `---\n\n`;
-    
-    if (hasBreaking) {
-      changelog += `**Migration Guide**: Please review the breaking changes above and update your implementation accordingly. Check our migration documentation for detailed upgrade instructions.\n\n`;
-    }
-    
-    changelog += `**Release Summary**: This release delivers ${totalChanges} enhancement${totalChanges > 1 ? 's' : ''} across the platform`;
-    
-    if (featCount > 0 || perfCount > 0) {
-      const improvements = [];
-      if (featCount > 0) improvements.push(`${featCount} new feature${featCount > 1 ? 's' : ''}`);
-      if (perfCount > 0) improvements.push(`${perfCount} performance optimization${perfCount > 1 ? 's' : ''}`);
-      changelog += `, including ${improvements.join(' and ')}`;
-    }
-    
-    changelog += `. `;
-    
-    if (context.recentTrends.focusAreas.length > 0) {
-      changelog += `Our continued focus on ${context.recentTrends.focusAreas.join(', ')} ensures we're building features that matter most to our users.`;
-    } else {
-      changelog += `We remain committed to delivering reliable, performant, and user-focused improvements.`;
-    }
-    
-    return changelog;
   }
 }
 

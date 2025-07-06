@@ -74,9 +74,9 @@ const Developer = () => {
       let changelog: string;
       
       if (useAdvancedGeneration) {
-        // Use the new advanced generator
+        // Use the new LLM-based advanced generator
         changelog = await changelogGenerator.generateAdvancedChangelog(version, commits);
-        toast.success("Advanced changelog generated with context awareness!");
+        toast.success("AI-powered changelog generated successfully!");
       } else {
         // Keep the original simple generation as fallback
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -129,9 +129,16 @@ const Developer = () => {
       }
 
       setGeneratedChangelog(changelog);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating changelog:', error);
-      toast.error("Failed to generate changelog. Please try again.");
+      
+      if (error.message.includes('OpenAI API key')) {
+        toast.error("OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.");
+      } else if (error.message.includes('quota exceeded')) {
+        toast.error("OpenAI API quota exceeded. Please check your billing settings or try simple generation.");
+      } else {
+        toast.error(`Failed to generate changelog: ${error.message}`);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -234,7 +241,7 @@ const Developer = () => {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-4">Generate Your Changelog</h1>
             <p className="text-lg text-slate-600">
-              AI-powered changelog generation with context awareness and professional formatting
+              AI-powered changelog generation using OpenAI's language models for accurate, context-aware descriptions
             </p>
           </div>
 
@@ -284,20 +291,23 @@ BREAKING CHANGE: update API endpoint structure`}
                   <Label htmlFor="advanced-generation" className="flex items-center space-x-2 cursor-pointer">
                     <Brain className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-medium text-blue-900">
-                      Use Advanced AI Generation
+                      Use AI-Powered Generation (OpenAI GPT-4)
                     </span>
                   </Label>
                 </div>
                 
                 {useAdvancedGeneration && (
                   <div className="text-xs text-blue-700 bg-blue-50 p-3 rounded border border-blue-200">
-                    <div className="font-medium mb-1">Advanced Features:</div>
+                    <div className="font-medium mb-1">AI Features:</div>
                     <ul className="list-disc list-inside space-y-1">
-                      <li>Context-aware generation using previous changelogs</li>
-                      <li>Conventional commit parsing and categorization</li>
-                      <li>Breaking change detection and migration guidance</li>
+                      <li>Intelligent parsing and understanding of commits</li>
+                      <li>Context-aware descriptions based on previous releases</li>
+                      <li>Accurate categorization without fabricating details</li>
                       <li>Professional formatting inspired by major tech companies</li>
                     </ul>
+                    <div className="mt-2 text-amber-700 bg-amber-50 p-2 rounded">
+                      ⚠️ Requires VITE_OPENAI_API_KEY environment variable
+                    </div>
                   </div>
                 )}
 
@@ -318,7 +328,7 @@ BREAKING CHANGE: update API endpoint structure`}
                       ) : (
                         <Sparkles className="mr-2 h-4 w-4" />
                       )}
-                      Generate {useAdvancedGeneration ? 'Advanced' : 'Simple'} Changelog
+                      Generate {useAdvancedGeneration ? 'AI-Powered' : 'Simple'} Changelog
                     </>
                   )}
                 </Button>
