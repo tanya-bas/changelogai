@@ -35,8 +35,8 @@ class EmbeddingService {
         normalize: true,
       });
       
-      // Extract the embedding output
-      const embedding = Array.from(output.data);
+      // Extract the embedding output and ensure it's typed as number[]
+      const embedding = Array.from(output.data) as number[];
       
       console.log('Local embedding generated successfully');
       return embedding;
