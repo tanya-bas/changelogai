@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -63,34 +64,20 @@ const Developer = () => {
   }
 
   const generateChangelog = async () => {
-    console.log('🎬 generateChangelog function called');
-    console.log('🎬 Version:', version);
-    console.log('🎬 Commits:', commits);
-    console.log('🎬 Use advanced:', useAdvancedGeneration);
-    
     if (!commits.trim() || !version.trim()) {
-      console.log('❌ Missing version or commits');
       toast.error("Please enter both version and commits");
       return;
     }
 
-    console.log('🎬 Setting isGenerating to true');
     setIsGenerating(true);
     
     try {
       let changelog: string;
       
       if (useAdvancedGeneration) {
-        console.log('🎬 Using advanced generation...');
-        // Use the new LLM-based advanced generator
         changelog = await changelogGenerator.generateAdvancedChangelog(version, commits);
-        console.log('🎬 Advanced generation completed');
-        console.log('🎬 Changelog length:', changelog.length);
-        console.log('🎬 Changelog preview:', changelog.substring(0, 100) + '...');
         toast.success("AI-powered changelog generated successfully!");
       } else {
-        console.log('🎬 Using simple generation...');
-        // Keep the original simple generation as fallback
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         const commitLines = commits.split('\n').filter(line => line.trim());
@@ -137,29 +124,12 @@ const Developer = () => {
           changelog += "\n";
         }
         
-        console.log('🎬 Simple generation completed');
-        console.log('🎬 Simple changelog length:', changelog.length);
         toast.success("Simple changelog generated successfully!");
       }
 
-      console.log('🎬 About to set generated changelog...');
-      console.log('🎬 Changelog to set:', changelog);
-      console.log('🎬 Current generatedChangelog state:', generatedChangelog);
-      
       setGeneratedChangelog(changelog);
       
-      console.log('🎬 setGeneratedChangelog called');
-      
-      // Add a small delay and then log the state again
-      setTimeout(() => {
-        console.log('🎬 State after update (delayed check):', generatedChangelog);
-      }, 100);
-      
     } catch (error: any) {
-      console.error('❌ Error in generateChangelog:', error);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error stack:', error.stack);
-      
       if (error.message.includes('OpenAI API key')) {
         toast.error("OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.");
       } else if (error.message.includes('quota exceeded')) {
@@ -168,7 +138,6 @@ const Developer = () => {
         toast.error(`Failed to generate changelog: ${error.message}`);
       }
     } finally {
-      console.log('🎬 Setting isGenerating to false');
       setIsGenerating(false);
     }
   };
@@ -205,7 +174,6 @@ const Developer = () => {
         ]);
 
       if (error) {
-        console.error('Database error:', error);
         if (error.code === '42P01') {
           toast.error("Database not set up yet. Please create the changelogs table in Supabase first.");
         } else {
@@ -232,9 +200,6 @@ const Developer = () => {
       toast.error("Failed to sign out: " + error.message);
     }
   };
-
-  console.log('🖼️ Render - generatedChangelog length:', generatedChangelog.length);
-  console.log('🖼️ Render - generatedChangelog content:', generatedChangelog.substring(0, 100));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -388,7 +353,6 @@ BREAKING CHANGE: update API endpoint structure`}
                   <div className="text-center py-12 text-slate-500">
                     <Sparkles className="mx-auto h-12 w-12 mb-4 text-slate-300" />
                     <p>Your generated changelog will appear here</p>
-                    <p className="text-xs mt-2">Debug: generatedChangelog.length = {generatedChangelog.length}</p>
                   </div>
                 )}
               </CardContent>
