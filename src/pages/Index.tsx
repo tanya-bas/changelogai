@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,6 @@ const Index = () => {
   const [editingProduct, setEditingProduct] = useState("");
   const { user } = useAuth();
 
-  // Get unique products from changelogs
   const products = Array.from(new Set(changelogs.map(c => c.product).filter(Boolean))) as string[];
 
   useEffect(() => {
@@ -41,18 +41,12 @@ const Index = () => {
 
   const fetchChangelogs = async () => {
     try {
-      console.log('Fetching changelogs from database...');
       const { data, error } = await supabase
         .from('changelogs')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching changelogs:', error);
-        throw error;
-      }
-      
-      console.log('Fetched changelogs:', data?.map(c => ({ id: c.id, version: c.version })));
+      if (error) throw error;
       setChangelogs(data || []);
     } catch (error) {
       console.error('Error fetching changelogs:', error);
@@ -81,7 +75,6 @@ const Index = () => {
 
       if (error) throw error;
 
-      // Update local state
       setChangelogs(changelogs.map(changelog => 
         changelog.id === id 
           ? { ...changelog, version: editingVersion, content: editingContent, product: editingProduct || undefined }
@@ -109,47 +102,14 @@ const Index = () => {
     }
 
     try {
-      console.log('Starting delete process for changelog ID:', id);
-      console.log('Current user ID:', user?.id);
-      
-      // First, let's check if the record exists and if the user owns it
-      const { data: existingRecord, error: fetchError } = await supabase
-        .from('changelogs')
-        .select('id, user_id')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) {
-        console.error('Error fetching record before delete:', fetchError);
-        throw new Error('Could not find the changelog to delete');
-      }
-
-      console.log('Record to delete:', existingRecord);
-
-      if (existingRecord.user_id !== user?.id) {
-        throw new Error('You do not have permission to delete this changelog');
-      }
-
-      // Perform the delete without the extra user_id check to avoid RLS conflicts
-      const { error: deleteError } = await supabase
+      const { error } = await supabase
         .from('changelogs')
         .delete()
         .eq('id', id);
 
-      if (deleteError) {
-        console.error('Supabase delete error:', deleteError);
-        throw deleteError;
-      }
+      if (error) throw error;
 
-      console.log('Delete operation completed successfully');
-
-      // Update local state after successful database deletion
-      setChangelogs(prevChangelogs => {
-        const updated = prevChangelogs.filter(changelog => changelog.id !== id);
-        console.log('Local state updated, removed changelog ID:', id);
-        return updated;
-      });
-      
+      setChangelogs(prevChangelogs => prevChangelogs.filter(changelog => changelog.id !== id));
       toast.success("Changelog deleted successfully!");
       
     } catch (error: any) {
