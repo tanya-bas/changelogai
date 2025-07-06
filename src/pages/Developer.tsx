@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -14,6 +13,7 @@ import { ChangelogOutput } from "@/components/ChangelogOutput";
 const Developer = () => {
   const [version, setVersion] = useState("");
   const [commits, setCommits] = useState("");
+  const [product, setProduct] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const { user, loading } = useAuth();
   const {
@@ -27,7 +27,7 @@ const Developer = () => {
     generateChangelog(version, commits);
   };
 
-  const handlePublish = async (changelog: string) => {
+  const handlePublish = async (changelog: string, productName: string) => {
     if (!version.trim() || !changelog.trim()) {
       toast.error("Please ensure both version and changelog are provided");
       return;
@@ -48,7 +48,8 @@ const Developer = () => {
           version: version.trim(),
           content: changelog,
           commits: commits,
-          user_id: user.id
+          user_id: user.id,
+          product: productName || null
         });
 
       if (error) {
@@ -61,6 +62,7 @@ const Developer = () => {
       // Reset the form
       setVersion("");
       setCommits("");
+      setProduct("");
       
     } catch (error: any) {
       console.error('Error publishing changelog:', error);
@@ -131,6 +133,8 @@ const Developer = () => {
               setVersion={setVersion}
               commits={commits}
               setCommits={setCommits}
+              product={product}
+              setProduct={setProduct}
               onGenerate={handleGenerate}
               isGenerating={isGenerating}
               isModelLoading={isModelLoading}
@@ -140,6 +144,7 @@ const Developer = () => {
               generatedChangelog={generatedChangelog}
               version={version}
               commits={commits}
+              product={product}
               onPublish={handlePublish}
               isPublishing={isPublishing}
             />
