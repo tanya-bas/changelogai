@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useChangelogGenerator } from "@/hooks/useChangelogGenerator";
 import { supabase } from "@/integrations/supabase/client";
+import { changelogEmbeddingService } from "@/services/changelogEmbedding";
 import { toast } from "sonner";
 import AuthForm from "@/components/AuthForm";
 import { DeveloperHeader } from "@/components/DeveloperHeader";
@@ -12,7 +12,6 @@ import { ChangelogInput } from "@/components/ChangelogInput";
 import { ChangelogOutput } from "@/components/ChangelogOutput";
 import { VectorSetupInstructions } from "@/components/VectorSetupInstructions";
 import { EmbeddingManager } from "@/components/EmbeddingManager";
-import { useAutoEmbedding } from "@/hooks/useAutoEmbedding";
 
 const Developer = () => {
   const [version, setVersion] = useState("");
@@ -26,9 +25,6 @@ const Developer = () => {
     isGenerating,
     generateChangelog
   } = useChangelogGenerator();
-
-  // Initialize automatic embedding
-  useAutoEmbedding();
 
   const handleGenerate = () => {
     generateChangelog(version, commits);
@@ -49,7 +45,7 @@ const Developer = () => {
     
     try {
       console.log('Publishing changelog for user:', user.id);
-      const { error } = await supabase
+      const { data: newChangelog, error } = await supabase
         .from('changelogs')
         .insert({
           version: version.trim(),
@@ -57,14 +53,26 @@ const Developer = () => {
           commits: commits,
           user_id: user.id,
           product: productName || null
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
         console.error('Supabase error:', error);
         throw error;
       }
 
-      toast.success("Changelog published and automatically embedded for semantic search!");
+      console.log('Changelog published, now embedding...');
+      
+      // Embed the changelog immediately after publishing
+      try {
+        await changelogEmbeddingService.embedChangelog(newChangelog);
+        toast.success("Changelog published and embedded for semantic search!");
+      } catch (embeddingError) {
+        console.error('Failed to embed changelog:', embeddingError);
+        toast.success("Changelog published successfully!");
+        toast.error("Failed to embed changelog for search");
+      }
       
       // Reset the form
       setVersion("");
