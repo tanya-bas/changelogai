@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -32,32 +32,32 @@ export const PreviousChangelogSelector = ({
   const [relevantChangelogs, setRelevantChangelogs] = useState<ChangelogSearchResult[]>([]);
   const [selectedChangelogs, setSelectedChangelogs] = useState<Set<string>>(new Set());
 
+  const searchForRelevantChangelogs = useCallback(async () => {
+    if (!commits.trim()) {
+      setRelevantChangelogs([]);
+      setSelectedChangelogs(new Set());
+      onSelectionChange([]);
+      return;
+    }
+
+    try {
+      const results = await searchSimilarChangelogs(commits, 3);
+      setRelevantChangelogs(results);
+      
+      // Auto-select all by default
+      const allIds = new Set(results.map(r => r.id));
+      setSelectedChangelogs(allIds);
+      onSelectionChange(results);
+    } catch (error) {
+      console.error('Failed to search for relevant changelogs:', error);
+    }
+  }, [commits, searchSimilarChangelogs]);
+
   useEffect(() => {
-    const searchForRelevantChangelogs = async () => {
-      if (!commits.trim()) {
-        setRelevantChangelogs([]);
-        setSelectedChangelogs(new Set());
-        onSelectionChange([]);
-        return;
-      }
-
-      try {
-        const results = await searchSimilarChangelogs(commits, 3);
-        setRelevantChangelogs(results);
-        
-        // Auto-select all by default
-        const allIds = new Set(results.map(r => r.id));
-        setSelectedChangelogs(allIds);
-        onSelectionChange(results);
-      } catch (error) {
-        console.error('Failed to search for relevant changelogs:', error);
-      }
-    };
-
     // Debounce the search
     const timeoutId = setTimeout(searchForRelevantChangelogs, 500);
     return () => clearTimeout(timeoutId);
-  }, [commits, searchSimilarChangelogs, onSelectionChange]);
+  }, [searchForRelevantChangelogs]);
 
   const handleCheckboxChange = (changelogId: string, checked: boolean) => {
     const newSelectedChangelogs = new Set(selectedChangelogs);
