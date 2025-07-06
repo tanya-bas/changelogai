@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -110,35 +109,53 @@ const Index = () => {
     }
 
     try {
-      console.log('Starting delete process for changelog with id:', id);
-      console.log('Current changelogs before delete:', changelogs.map(c => ({ id: c.id, version: c.version })));
+      console.log('Starting delete process for changelog ID:', id);
+      console.log('Current user ID:', user?.id);
       
-      const { error, data } = await supabase
+      // First, let's check if the record exists and if the user owns it
+      const { data: existingRecord, error: fetchError } = await supabase
         .from('changelogs')
-        .delete()
+        .select('id, user_id')
         .eq('id', id)
-        .select();
+        .single();
 
-      if (error) {
-        console.error('Supabase delete error:', error);
-        throw error;
+      if (fetchError) {
+        console.error('Error fetching record before delete:', fetchError);
+        throw new Error('Could not find the changelog to delete');
       }
 
-      console.log('Delete response data:', data);
-      console.log('Successfully deleted from database');
-      
+      console.log('Record to delete:', existingRecord);
+
+      if (existingRecord.user_id !== user?.id) {
+        throw new Error('You do not have permission to delete this changelog');
+      }
+
+      // Now perform the delete
+      const { error: deleteError, count } = await supabase
+        .from('changelogs')
+        .delete({ count: 'exact' })
+        .eq('id', id)
+        .eq('user_id', user?.id); // Double check user ownership
+
+      if (deleteError) {
+        console.error('Supabase delete error:', deleteError);
+        throw deleteError;
+      }
+
+      console.log('Delete operation count:', count);
+
+      if (count === 0) {
+        throw new Error('No records were deleted. You may not have permission to delete this changelog.');
+      }
+
       // Update local state only after successful database deletion
-      const updatedChangelogs = changelogs.filter(changelog => changelog.id !== id);
-      console.log('Updated local changelogs:', updatedChangelogs.map(c => ({ id: c.id, version: c.version })));
-      setChangelogs(updatedChangelogs);
+      setChangelogs(prevChangelogs => {
+        const updated = prevChangelogs.filter(changelog => changelog.id !== id);
+        console.log('Local state updated, removed changelog ID:', id);
+        return updated;
+      });
       
       toast.success("Changelog deleted successfully!");
-      
-      // Let's also verify the deletion by refetching
-      setTimeout(() => {
-        console.log('Verifying deletion by refetching...');
-        fetchChangelogs();
-      }, 1000);
       
     } catch (error: any) {
       console.error('Error deleting changelog:', error);
