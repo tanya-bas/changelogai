@@ -1,8 +1,7 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://cidirsnetnzdngzykesu.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpZGlyc25ldG56ZG5nenlrZXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYxODUxNDEsImV4cCI6MjA1MTc2MTE0MX0.4_HcKtmBvUoM0Qm7dBXN1RzYA3EwJ8pLs2Fg6IuTcVk';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpZGlyc25ldG56ZG5nenlrZXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NDE3NjcsImV4cCI6MjA2NzMxNzc2N30.9cZtDvReRDlNUVjbntfROUgpn2_07HOrwEzXV8xTtFg';
 
 // Get the current origin, fallback to a default if not available
 const getRedirectUrl = () => {
