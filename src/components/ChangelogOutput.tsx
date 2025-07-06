@@ -47,10 +47,13 @@ export const ChangelogOutput = ({
     const changelogToPublish = isEditing ? editedChangelog : generatedChangelog;
     try {
       await onPublish(changelogToPublish, product);
-      // Clear the changelog fields after successful publishing
+      // Clear the local state after successful publishing
       setEditedChangelog("");
       setIsEditing(false);
-      onClearChangelog();
+      // Call the parent's clear function to clear the generated changelog
+      if (onClearChangelog && typeof onClearChangelog === 'function') {
+        onClearChangelog();
+      }
     } catch (error) {
       // Error handling is done in the parent component
       console.error('Error in handlePublish:', error);
