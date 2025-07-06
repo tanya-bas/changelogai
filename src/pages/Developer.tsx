@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -10,15 +11,12 @@ import AuthForm from "@/components/AuthForm";
 import { DeveloperHeader } from "@/components/DeveloperHeader";
 import { ChangelogInput } from "@/components/ChangelogInput";
 import { ChangelogOutput } from "@/components/ChangelogOutput";
-import { VectorSetupInstructions } from "@/components/VectorSetupInstructions";
-import { EmbeddingManager } from "@/components/EmbeddingManager";
 
 const Developer = () => {
   const [version, setVersion] = useState("");
   const [commits, setCommits] = useState("");
   const [product, setProduct] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
-  const [showVectorSetup, setShowVectorSetup] = useState(false);
   const { user, loading } = useAuth();
   const {
     generatedChangelog,
@@ -62,16 +60,17 @@ const Developer = () => {
         throw error;
       }
 
-      console.log('Changelog published, now embedding...');
+      console.log('Changelog published successfully');
       
-      // Embed the changelog immediately after publishing
+      // Try to embed the changelog for search
       try {
         await changelogEmbeddingService.embedChangelog(newChangelog);
-        toast.success("Changelog published and embedded for semantic search!");
+        console.log('Changelog embedded successfully');
+        toast.success("Changelog published and indexed for search!");
       } catch (embeddingError) {
         console.error('Failed to embed changelog:', embeddingError);
+        // Don't show error to user - embedding is not critical for publishing
         toast.success("Changelog published successfully!");
-        toast.error("Failed to embed changelog for search");
       }
       
       // Reset the form
@@ -138,27 +137,8 @@ const Developer = () => {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-4">Generate Your Changelog</h1>
             <p className="text-lg text-slate-600">
-              Transform your commit messages into beautiful, user-friendly changelogs powered by LLMs
+              Transform your commit messages into beautiful, user-friendly changelogs powered by AI
             </p>
-            <p className="text-sm text-green-600 mt-2">
-              ✨ Vector storage with Supabase pgvector - changelogs will be automatically indexed for semantic search
-            </p>
-            <button 
-              onClick={() => setShowVectorSetup(!showVectorSetup)}
-              className="text-sm text-blue-600 hover:text-blue-800 underline mt-2"
-            >
-              {showVectorSetup ? 'Hide' : 'Show'} Vector Setup Instructions
-            </button>
-          </div>
-
-          {showVectorSetup && (
-            <div className="mb-8">
-              <VectorSetupInstructions />
-            </div>
-          )}
-
-          <div className="mb-8">
-            <EmbeddingManager />
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">

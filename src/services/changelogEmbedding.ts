@@ -1,6 +1,5 @@
 
 import { embeddingService } from './embeddingService';
-import { vectorStorage, VectorDocument } from './vectorStorage';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ChangelogEntry {
@@ -14,7 +13,7 @@ interface ChangelogEntry {
 class ChangelogEmbeddingService {
   async embedChangelog(changelog: ChangelogEntry): Promise<void> {
     try {
-      console.log(`Embedding changelog ${changelog.id} with Supabase pgvector...`);
+      console.log(`Embedding changelog ${changelog.id}...`);
       
       // Create searchable text combining version, product, and content
       const searchableText = [
@@ -25,135 +24,89 @@ class ChangelogEmbeddingService {
 
       const embedding = await embeddingService.generateEmbedding(searchableText);
 
-      const document: VectorDocument = {
-        id: `changelog_${changelog.id}`,
-        content: searchableText,
-        embedding,
-        metadata: {
+      // Store the embedding in Supabase
+      const { error } = await supabase
+        .from('changelog_embeddings')
+        .upsert({
+          id: `changelog_${changelog.id}`,
+          content: searchableText,
+          embedding: embedding,
           version: changelog.version,
           product: changelog.product,
           created_at: changelog.created_at,
           changelog_id: changelog.id
-        }
-      };
+        });
 
-      await vectorStorage.storeDocument(document);
-      console.log(`Successfully embedded changelog ${changelog.id} to Supabase`);
+      if (error) {
+        console.error('Failed to store embedding:', error);
+        throw error;
+      }
+
+      console.log(`Successfully embedded changelog ${changelog.id}`);
     } catch (error) {
       console.error(`Failed to embed changelog ${changelog.id}:`, error);
       throw error;
     }
   }
 
-  async clearAllEmbeddings(): Promise<void> {
+  async searchSimilarChangelogs(query: string, limit: number = 3): Promise<any[]> {
     try {
-      console.log('Clearing all existing embeddings...');
-      const { error } = await supabase
-        .from('changelog_embeddings')
-        .delete()
-        .neq('id', ''); // Delete all rows
-      
-      if (error) throw error;
-      console.log('All embeddings cleared successfully');
-    } catch (error) {
-      console.error('Failed to clear embeddings:', error);
-      throw error;
-    }
-  }
-
-  async reEmbedAllChangelogs(): Promise<void> {
-    try {
-      console.log('Starting complete re-embedding process...');
-      
-      // First, clear all existing embeddings
-      await this.clearAllEmbeddings();
-      
-      // Then embed all changelogs fresh
-      await this.embedAllChangelogs();
-      
-      console.log('Complete re-embedding process finished successfully');
-    } catch (error) {
-      console.error('Failed to re-embed all changelogs:', error);
-      throw error;
-    }
-  }
-
-  async embedAllChangelogs(): Promise<void> {
-    try {
-      console.log('Fetching all changelogs for embedding with pgvector...');
-      const { data: changelogs, error } = await supabase
-        .from('changelogs')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      if (!changelogs || changelogs.length === 0) {
-        console.log('No changelogs found to embed');
-        return;
-      }
-
-      console.log(`Embedding ${changelogs.length} changelogs to Supabase...`);
-      
-      // Process in batches to avoid overwhelming the system
-      const batchSize = 3; // Reduced batch size for more reliable processing
-      for (let i = 0; i < changelogs.length; i += batchSize) {
-        const batch = changelogs.slice(i, i + batchSize);
-        await Promise.all(batch.map(changelog => this.embedChangelog(changelog)));
-        console.log(`Embedded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(changelogs.length / batchSize)}`);
-        
-        // Add a small delay between batches
-        if (i + batchSize < changelogs.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-
-      console.log('All changelogs embedded successfully to Supabase');
-    } catch (error) {
-      console.error('Failed to embed changelogs:', error);
-      throw error;
-    }
-  }
-
-  async searchSimilarChangelogs(query: string, limit: number = 3): Promise<Array<VectorDocument & { similarity: number }>> {
-    try {
-      console.log('Searching similar changelogs with pgvector...');
+      console.log('Searching similar changelogs...');
       const queryEmbedding = await embeddingService.generateEmbedding(query);
       
-      // Try pgvector search first, fallback to client-side search
-      try {
-        return await vectorStorage.searchWithPgVector(queryEmbedding, limit);
-      } catch (pgvectorError) {
-        console.warn('pgvector search failed, falling back to client-side search:', pgvectorError);
-        return await vectorStorage.search(queryEmbedding, limit);
+      // Simple approach: get all embeddings and calculate similarity client-side
+      const { data: embeddings, error } = await supabase
+        .from('changelog_embeddings')
+        .select('*');
+
+      if (error) throw error;
+
+      if (!embeddings || embeddings.length === 0) {
+        return [];
       }
+
+      // Calculate cosine similarity for each embedding
+      const results = embeddings.map(item => ({
+        ...item,
+        similarity: this.cosineSimilarity(queryEmbedding, item.embedding)
+      }));
+
+      // Sort by similarity and return top results
+      return results
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, limit);
     } catch (error) {
       console.error('Failed to search similar changelogs:', error);
-      throw error;
+      return [];
     }
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
   async deleteChangelogEmbedding(changelogId: number): Promise<void> {
     try {
-      await vectorStorage.deleteByChangelogId(changelogId);
-      console.log(`Deleted embedding for changelog ${changelogId} from Supabase`);
+      const { error } = await supabase
+        .from('changelog_embeddings')
+        .delete()
+        .eq('changelog_id', changelogId);
+      
+      if (error) throw error;
+      console.log(`Deleted embedding for changelog ${changelogId}`);
     } catch (error) {
       console.error(`Failed to delete embedding for changelog ${changelogId}:`, error);
       throw error;
-    }
-  }
-
-  async getEmbeddingCount(): Promise<number> {
-    try {
-      const { count, error } = await supabase
-        .from('changelog_embeddings')
-        .select('*', { count: 'exact', head: true });
-      
-      if (error) throw error;
-      return count || 0;
-    } catch (error) {
-      console.error('Failed to get embedding count:', error);
-      return 0;
     }
   }
 }
