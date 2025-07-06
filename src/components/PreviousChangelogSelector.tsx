@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -31,12 +30,16 @@ export const PreviousChangelogSelector = ({
 }: PreviousChangelogSelectorProps) => {
   const [relevantChangelogs, setRelevantChangelogs] = useState<ChangelogSearchResult[]>([]);
   const [selectedChangelogs, setSelectedChangelogs] = useState<Set<string>>(new Set());
+  
+  // Use a ref to store the latest callback to avoid dependency issues
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
 
   const searchForRelevantChangelogs = useCallback(async () => {
     if (!commits.trim()) {
       setRelevantChangelogs([]);
       setSelectedChangelogs(new Set());
-      onSelectionChange([]);
+      onSelectionChangeRef.current([]);
       return;
     }
 
@@ -47,7 +50,7 @@ export const PreviousChangelogSelector = ({
       // Auto-select all by default
       const allIds = new Set(results.map(r => r.id));
       setSelectedChangelogs(allIds);
-      onSelectionChange(results);
+      onSelectionChangeRef.current(results);
     } catch (error) {
       console.error('Failed to search for relevant changelogs:', error);
     }
@@ -73,7 +76,7 @@ export const PreviousChangelogSelector = ({
     const selectedChangelogObjects = relevantChangelogs.filter(
       changelog => newSelectedChangelogs.has(changelog.id)
     );
-    onSelectionChange(selectedChangelogObjects);
+    onSelectionChangeRef.current(selectedChangelogObjects);
   };
 
   const formatDate = (dateString: string) => {
