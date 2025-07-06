@@ -103,14 +103,19 @@ const Index = () => {
     }
 
     try {
+      console.log('Deleting changelog with id:', id);
       const { error } = await supabase
         .from('changelogs')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase delete error:', error);
+        throw error;
+      }
 
-      // Update local state
+      console.log('Successfully deleted from database');
+      // Update local state only after successful database deletion
       setChangelogs(changelogs.filter(changelog => changelog.id !== id));
       toast.success("Changelog deleted successfully!");
     } catch (error: any) {
