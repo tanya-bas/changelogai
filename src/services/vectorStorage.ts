@@ -1,4 +1,6 @@
 
+import { supabase } from '@/integrations/supabase/client';
+
 export interface VectorDocument {
   id: string;
   content: string;
@@ -12,89 +14,78 @@ export interface VectorDocument {
 }
 
 class VectorStorage {
-  private dbName = 'changelog_vectors';
-  private storeName = 'embeddings';
-  private db: IDBDatabase | null = null;
-
-  async initialize(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, 1);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        this.db = request.result;
-        resolve();
-      };
-
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
-          store.createIndex('changelog_id', 'metadata.changelog_id', { unique: true });
-        }
-      };
-    });
-  }
-
   async storeDocument(document: VectorDocument): Promise<void> {
-    if (!this.db) await this.initialize();
+    try {
+      const { error } = await supabase
+        .from('changelog_embeddings')
+        .upsert({
+          id: document.id,
+          content: document.content,
+          embedding: document.embedding,
+          version: document.metadata.version,
+          product: document.metadata.product,
+          created_at: document.metadata.created_at,
+          changelog_id: document.metadata.changelog_id
+        });
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-      const request = store.put(document);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Failed to store document:', error);
+      throw error;
+    }
   }
 
   async getAllDocuments(): Promise<VectorDocument[]> {
-    if (!this.db) await this.initialize();
+    try {
+      const { data, error } = await supabase
+        .from('changelog_embeddings')
+        .select('*');
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.storeName], 'readonly');
-      const store = transaction.objectStore(this.storeName);
-      const request = store.getAll();
+      if (error) throw error;
 
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-    });
+      return (data || []).map(row => ({
+        id: row.id,
+        content: row.content,
+        embedding: row.embedding,
+        metadata: {
+          version: row.version,
+          product: row.product,
+          created_at: row.created_at,
+          changelog_id: row.changelog_id
+        }
+      }));
+    } catch (error) {
+      console.error('Failed to get all documents:', error);
+      throw error;
+    }
   }
 
   async deleteDocument(id: string): Promise<void> {
-    if (!this.db) await this.initialize();
+    try {
+      const { error } = await supabase
+        .from('changelog_embeddings')
+        .delete()
+        .eq('id', id);
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-      const request = store.delete(id);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+      throw error;
+    }
   }
 
   async deleteByChangelogId(changelogId: number): Promise<void> {
-    if (!this.db) await this.initialize();
+    try {
+      const { error } = await supabase
+        .from('changelog_embeddings')
+        .delete()
+        .eq('changelog_id', changelogId);
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-      const index = store.index('changelog_id');
-      const request = index.openCursor(IDBKeyRange.only(changelogId));
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = (event) => {
-        const cursor = (event.target as IDBRequest).result;
-        if (cursor) {
-          cursor.delete();
-          cursor.continue();
-        } else {
-          resolve();
-        }
-      };
-    });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Failed to delete documents by changelog ID:', error);
+      throw error;
+    }
   }
 
   cosineSimilarity(a: number[], b: number[]): number {
@@ -112,16 +103,54 @@ class VectorStorage {
   }
 
   async search(queryEmbedding: number[], limit: number = 5): Promise<Array<VectorDocument & { similarity: number }>> {
-    const documents = await this.getAllDocuments();
-    
-    const results = documents.map(doc => ({
-      ...doc,
-      similarity: this.cosineSimilarity(queryEmbedding, doc.embedding)
-    }));
+    try {
+      // For now, we'll do similarity search in the client
+      // In production, you'd want to use pgvector's similarity functions
+      const documents = await this.getAllDocuments();
+      
+      const results = documents.map(doc => ({
+        ...doc,
+        similarity: this.cosineSimilarity(queryEmbedding, doc.embedding)
+      }));
 
-    return results
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, limit);
+      return results
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, limit);
+    } catch (error) {
+      console.error('Failed to search documents:', error);
+      throw error;
+    }
+  }
+
+  // Method to use pgvector similarity search (requires proper SQL function)
+  async searchWithPgVector(queryEmbedding: number[], limit: number = 5): Promise<Array<VectorDocument & { similarity: number }>> {
+    try {
+      const { data, error } = await supabase
+        .rpc('search_similar_changelogs', {
+          query_embedding: queryEmbedding,
+          match_threshold: 0.7,
+          match_count: limit
+        });
+
+      if (error) throw error;
+
+      return (data || []).map(row => ({
+        id: row.id,
+        content: row.content,
+        embedding: row.embedding,
+        metadata: {
+          version: row.version,
+          product: row.product,
+          created_at: row.created_at,
+          changelog_id: row.changelog_id
+        },
+        similarity: row.similarity
+      }));
+    } catch (error) {
+      console.error('Failed to search with pgvector:', error);
+      // Fallback to client-side search
+      return this.search(queryEmbedding, limit);
+    }
   }
 }
 

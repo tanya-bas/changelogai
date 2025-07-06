@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -9,6 +10,7 @@ import AuthForm from "@/components/AuthForm";
 import { DeveloperHeader } from "@/components/DeveloperHeader";
 import { ChangelogInput } from "@/components/ChangelogInput";
 import { ChangelogOutput } from "@/components/ChangelogOutput";
+import { VectorSetupInstructions } from "@/components/VectorSetupInstructions";
 import { useAutoEmbedding } from "@/hooks/useAutoEmbedding";
 
 const Developer = () => {
@@ -16,6 +18,7 @@ const Developer = () => {
   const [commits, setCommits] = useState("");
   const [product, setProduct] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [showVectorSetup, setShowVectorSetup] = useState(false);
   const { user, loading } = useAuth();
   const {
     generatedChangelog,
@@ -129,9 +132,21 @@ const Developer = () => {
               Transform your commit messages into beautiful, user-friendly changelogs powered by LLMs
             </p>
             <p className="text-sm text-green-600 mt-2">
-              ✨ Automatic embedding enabled - new changelogs will be automatically indexed for semantic search
+              ✨ Vector storage with Supabase pgvector - changelogs will be automatically indexed for semantic search
             </p>
+            <button 
+              onClick={() => setShowVectorSetup(!showVectorSetup)}
+              className="text-sm text-blue-600 hover:text-blue-800 underline mt-2"
+            >
+              {showVectorSetup ? 'Hide' : 'Show'} Vector Setup Instructions
+            </button>
           </div>
+
+          {showVectorSetup && (
+            <div className="mb-8">
+              <VectorSetupInstructions />
+            </div>
+          )}
 
           <div className="grid lg:grid-cols-2 gap-8">
             <ChangelogInput
