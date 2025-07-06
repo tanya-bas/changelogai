@@ -9,6 +9,7 @@ import AuthForm from "@/components/AuthForm";
 import { DeveloperHeader } from "@/components/DeveloperHeader";
 import { ChangelogInput } from "@/components/ChangelogInput";
 import { ChangelogOutput } from "@/components/ChangelogOutput";
+import { SemanticSearchSetup } from "@/components/SemanticSearchSetup";
 
 const Developer = () => {
   const [version, setVersion] = useState("");
@@ -127,16 +128,20 @@ const Developer = () => {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
-            <ChangelogInput
-              version={version}
-              setVersion={setVersion}
-              commits={commits}
-              setCommits={setCommits}
-              product={product}
-              setProduct={setProduct}
-              onGenerate={handleGenerate}
-              isGenerating={isGenerating}
-            />
+            <div className="space-y-6">
+              <SemanticSearchSetup />
+              
+              <ChangelogInput
+                version={version}
+                setVersion={setVersion}
+                commits={commits}
+                setCommits={setCommits}
+                product={product}
+                setProduct={setProduct}
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+              />
+            </div>
 
             <ChangelogOutput 
               generatedChangelog={generatedChangelog}
