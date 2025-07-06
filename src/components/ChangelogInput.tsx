@@ -76,11 +76,6 @@ feat(ui): improve mobile responsiveness`}
             </>
           )}
         </Button>
-        
-        <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded">
-          <p className="font-medium mb-1">✨ Powered by Local AI</p>
-          <p>Uses Hugging Face transformers running locally in your browser. The first generation may take longer as the model downloads.</p>
-        </div>
       </CardContent>
     </Card>
   );
