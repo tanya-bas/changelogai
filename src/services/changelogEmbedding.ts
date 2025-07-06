@@ -62,19 +62,33 @@ class ChangelogEmbeddingService {
       if (error) throw error;
 
       if (!embeddings || embeddings.length === 0) {
+        console.log('No embeddings found in database');
         return [];
       }
 
+      console.log(`Found ${embeddings.length} embeddings to compare`);
+
       // Calculate cosine similarity for each embedding
-      const results = embeddings.map(item => ({
-        ...item,
-        similarity: this.cosineSimilarity(queryEmbedding, item.embedding)
-      }));
+      const results = embeddings.map(item => {
+        const similarity = this.cosineSimilarity(queryEmbedding, item.embedding);
+        console.log(`Changelog ${item.id}: similarity = ${similarity}`);
+        return {
+          ...item,
+          similarity: similarity
+        };
+      }).filter(item => !isNaN(item.similarity) && isFinite(item.similarity));
 
       // Sort by similarity and return top results
-      return results
+      // Lower the threshold to 0.1 to be more inclusive
+      const filteredResults = results
+        .filter(item => item.similarity > 0.1)
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, limit);
+
+      console.log(`Returning ${filteredResults.length} results with similarities:`, 
+        filteredResults.map(r => ({ id: r.id, similarity: r.similarity })));
+
+      return filteredResults;
     } catch (error) {
       console.error('Failed to search similar changelogs:', error);
       return [];
@@ -82,17 +96,33 @@ class ChangelogEmbeddingService {
   }
 
   private cosineSimilarity(a: number[], b: number[]): number {
+    if (!a || !b || a.length !== b.length) {
+      console.warn('Invalid vectors for cosine similarity');
+      return 0;
+    }
+
     let dotProduct = 0;
     let normA = 0;
     let normB = 0;
 
     for (let i = 0; i < a.length; i++) {
+      if (isNaN(a[i]) || isNaN(b[i])) {
+        console.warn('NaN values detected in embeddings');
+        return 0;
+      }
       dotProduct += a[i] * b[i];
       normA += a[i] * a[i];
       normB += b[i] * b[i];
     }
 
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+    if (denominator === 0) {
+      console.warn('Zero denominator in cosine similarity');
+      return 0;
+    }
+
+    const similarity = dotProduct / denominator;
+    return isNaN(similarity) ? 0 : similarity;
   }
 
   async deleteChangelogEmbedding(changelogId: number): Promise<void> {

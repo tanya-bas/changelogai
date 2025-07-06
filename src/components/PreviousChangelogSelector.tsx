@@ -50,13 +50,29 @@ export const PreviousChangelogSelector = ({
       }
 
       try {
-        const results = await searchSimilarChangelogsRef.current(commits, 3);
+        console.log('Searching for relevant changelogs with query:', commits.substring(0, 100) + '...');
+        const results = await searchSimilarChangelogsRef.current(commits, 5); // Increase limit to get more options
+        console.log('Search results:', results);
         setRelevantChangelogs(results);
         
-        // Auto-select all by default
-        const allIds = new Set(results.map(r => r.id));
-        setSelectedChangelogs(allIds);
-        onSelectionChangeRef.current(results);
+        // Auto-select changelogs with similarity > 0.2 (more selective auto-selection)
+        const highSimilarityIds = new Set(
+          results
+            .filter(r => r.similarity > 0.2)
+            .map(r => r.id)
+        );
+        
+        // If no high similarity matches, select the top result if it exists
+        if (highSimilarityIds.size === 0 && results.length > 0) {
+          highSimilarityIds.add(results[0].id);
+        }
+        
+        setSelectedChangelogs(highSimilarityIds);
+        
+        const selectedChangelogObjects = results.filter(
+          changelog => highSimilarityIds.has(changelog.id)
+        );
+        onSelectionChangeRef.current(selectedChangelogObjects);
       } catch (error) {
         console.error('Failed to search for relevant changelogs:', error);
       }
@@ -95,6 +111,13 @@ export const PreviousChangelogSelector = ({
   const truncateContent = (content: string, maxLength: number = 150) => {
     if (content.length <= maxLength) return content;
     return content.substring(0, maxLength) + '...';
+  };
+
+  const formatSimilarity = (similarity: number) => {
+    if (isNaN(similarity) || !isFinite(similarity)) {
+      return '0';
+    }
+    return Math.round(similarity * 100);
   };
 
   if (!commits.trim()) {
@@ -151,7 +174,7 @@ export const PreviousChangelogSelector = ({
                         {formatDate(changelog.created_at)}
                       </span>
                       <Badge variant="outline" className="text-xs">
-                        {Math.round(changelog.similarity * 100)}% match
+                        {formatSimilarity(changelog.similarity)}% match
                       </Badge>
                     </div>
                     <p className="text-sm text-slate-600 leading-relaxed">
