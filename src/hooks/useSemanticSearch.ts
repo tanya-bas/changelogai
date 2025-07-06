@@ -18,13 +18,21 @@ export const useSemanticSearch = () => {
   const [isSearching, setIsSearching] = useState(false);
 
   const searchSimilarChangelogs = async (query: string, limit?: number): Promise<ChangelogSearchResult[]> => {
+    if (!query.trim()) {
+      console.log('Empty query provided for semantic search');
+      return [];
+    }
+
     setIsSearching(true);
     try {
+      console.log(`Searching for ${limit || 3} similar changelogs...`);
       const results = await changelogEmbeddingService.searchSimilarChangelogs(query, limit);
+      console.log(`Found ${results.length} similar changelogs`);
       return results;
     } catch (error: any) {
       console.error('Failed to search changelogs:', error);
-      toast.error('Failed to search changelogs: ' + error.message);
+      // Don't show toast error for background searches during changelog generation
+      // toast.error('Failed to search changelogs: ' + error.message);
       return [];
     } finally {
       setIsSearching(false);

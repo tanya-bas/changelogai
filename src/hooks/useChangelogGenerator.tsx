@@ -2,10 +2,12 @@
 import { useState } from 'react';
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useSemanticSearch } from './useSemanticSearch';
 
 export const useChangelogGenerator = () => {
   const [generatedChangelog, setGeneratedChangelog] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const { searchSimilarChangelogs } = useSemanticSearch();
 
   const generateChangelog = async (version: string, commits: string) => {
     if (!commits.trim() || !version.trim()) {
@@ -16,13 +18,20 @@ export const useChangelogGenerator = () => {
     setIsGenerating(true);
     
     try {
+      console.log('Searching for relevant previous changelogs...');
+      
+      // Search for similar changelogs to provide context
+      const relevantChangelogs = await searchSimilarChangelogs(commits, 3);
+      console.log('Found relevant changelogs:', relevantChangelogs.length);
+      
       console.log('Calling OpenAI edge function...');
       
-      // Call the Supabase edge function
+      // Call the Supabase edge function with context
       const { data, error } = await supabase.functions.invoke('generate-changelog', {
         body: {
           version: version.trim(),
-          commits: commits.trim()
+          commits: commits.trim(),
+          previousChangelogs: relevantChangelogs
         }
       });
 

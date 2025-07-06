@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { version, commits } = await req.json()
+    const { version, commits, previousChangelogs } = await req.json()
 
     if (!version || !commits) {
       return new Response(
@@ -30,6 +30,16 @@ serve(async (req) => {
     }
 
     console.log('Making request to OpenAI API...')
+    
+    // Build context from previous changelogs
+    let contextSection = '';
+    if (previousChangelogs && previousChangelogs.length > 0) {
+      contextSection = `\n\nFor context, here are some previous changelogs that might be relevant:\n\n`;
+      previousChangelogs.forEach((changelog: any, index: number) => {
+        contextSection += `Previous Changelog ${index + 1} (Version ${changelog.version}):\n${changelog.content}\n\n`;
+      });
+      contextSection += `Use these previous changelogs to maintain consistency in tone, style, and formatting. Follow similar patterns for categorizing changes and writing descriptions.\n`;
+    }
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -50,7 +60,7 @@ Format the output as markdown with:
 - Each change as a bullet point with clear, user-friendly language
 - Remove technical jargon and make it accessible to end users
 
-If a commit doesn't fit clearly into features/improvements/fixes, put it in the most appropriate category or create a "🔧 Other Changes" section.`
+If a commit doesn't fit clearly into features/improvements/fixes, put it in the most appropriate category or create a "🔧 Other Changes" section.${contextSection}`
           },
           {
             role: 'user',
