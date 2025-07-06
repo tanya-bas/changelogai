@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +19,7 @@ export const useChangelogGenerator = () => {
       console.log('Calling OpenAI edge function...');
       
       // Call the Supabase edge function with the correct name
-      const { data, error } = await supabase.functions.invoke('dynamic-responder', {
+      const { data, error } = await supabase.functions.invoke('generate-changelog', {
         body: {
           version: version.trim(),
           commits: commits.trim()
