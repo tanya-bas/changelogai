@@ -10,6 +10,7 @@ import { DeveloperHeader } from "@/components/DeveloperHeader";
 import { ChangelogInput } from "@/components/ChangelogInput";
 import { ChangelogOutput } from "@/components/ChangelogOutput";
 import { SemanticSearchSetup } from "@/components/SemanticSearchSetup";
+import { useAutoEmbedding } from "@/hooks/useAutoEmbedding";
 
 const Developer = () => {
   const [version, setVersion] = useState("");
@@ -22,6 +23,9 @@ const Developer = () => {
     isGenerating,
     generateChangelog
   } = useChangelogGenerator();
+
+  // Initialize automatic embedding
+  useAutoEmbedding();
 
   const handleGenerate = () => {
     generateChangelog(version, commits);
@@ -57,7 +61,7 @@ const Developer = () => {
         throw error;
       }
 
-      toast.success("Changelog published successfully!");
+      toast.success("Changelog published and automatically embedded for semantic search!");
       
       // Reset the form
       setVersion("");
@@ -125,23 +129,22 @@ const Developer = () => {
             <p className="text-lg text-slate-600">
               Transform your commit messages into beautiful, user-friendly changelogs powered by LLMs
             </p>
+            <p className="text-sm text-green-600 mt-2">
+              ✨ Automatic embedding enabled - new changelogs will be automatically indexed for semantic search
+            </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <SemanticSearchSetup />
-              
-              <ChangelogInput
-                version={version}
-                setVersion={setVersion}
-                commits={commits}
-                setCommits={setCommits}
-                product={product}
-                setProduct={setProduct}
-                onGenerate={handleGenerate}
-                isGenerating={isGenerating}
-              />
-            </div>
+            <ChangelogInput
+              version={version}
+              setVersion={setVersion}
+              commits={commits}
+              setCommits={setCommits}
+              product={product}
+              setProduct={setProduct}
+              onGenerate={handleGenerate}
+              isGenerating={isGenerating}
+            />
 
             <ChangelogOutput 
               generatedChangelog={generatedChangelog}
