@@ -41,12 +41,19 @@ const Index = () => {
 
   const fetchChangelogs = async () => {
     try {
+      console.log('Current user when fetching:', user?.id);
       const { data, error } = await supabase
         .from('changelogs')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Fetch error:', error);
+        throw error;
+      }
+      
+      console.log('Fetched changelogs:', data?.length, 'records');
+      console.log('User ownership check:', data?.map(c => ({ id: c.id, user_id: c.user_id, isOwner: c.user_id === user?.id })));
       setChangelogs(data || []);
     } catch (error) {
       console.error('Error fetching changelogs:', error);
@@ -64,6 +71,10 @@ const Index = () => {
 
   const handleSaveEdit = async (id: number) => {
     try {
+      console.log('Attempting to update changelog:', id);
+      console.log('Current user:', user?.id);
+      console.log('Update payload:', { version: editingVersion, content: editingContent, product: editingProduct });
+
       const { error } = await supabase
         .from('changelogs')
         .update({
@@ -73,7 +84,10 @@ const Index = () => {
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Update error:', error);
+        throw error;
+      }
 
       setChangelogs(changelogs.map(changelog => 
         changelog.id === id 
@@ -102,18 +116,56 @@ const Index = () => {
     }
 
     try {
-      const { error } = await supabase
+      console.log('=== DELETE OPERATION DEBUG ===');
+      console.log('Attempting to delete changelog ID:', id);
+      console.log('Current user ID:', user?.id);
+      console.log('Current user email:', user?.email);
+      
+      // First check what we can see about this record
+      const { data: recordCheck, error: checkError } = await supabase
+        .from('changelogs')
+        .select('id, user_id, version')
+        .eq('id', id);
+        
+      console.log('Record visibility check:', recordCheck);
+      if (checkError) console.error('Record check error:', checkError);
+
+      // Try the delete operation
+      console.log('Executing delete operation...');
+      const { data: deleteData, error: deleteError } = await supabase
         .from('changelogs')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select(); // This will return the deleted rows if successful
 
-      if (error) throw error;
+      console.log('Delete operation result:');
+      console.log('- Deleted data:', deleteData);
+      console.log('- Delete error:', deleteError);
+
+      if (deleteError) {
+        console.error('=== DELETE FAILED ===');
+        console.error('Error code:', deleteError.code);
+        console.error('Error message:', deleteError.message);
+        console.error('Error details:', deleteError.details);
+        console.error('Error hint:', deleteError.hint);
+        throw deleteError;
+      }
+
+      if (!deleteData || deleteData.length === 0) {
+        console.warn('=== DELETE WARNING ===');
+        console.warn('No rows were deleted - this suggests RLS is blocking the operation');
+        throw new Error('Delete operation completed but no rows were affected. This may be due to permissions.');
+      }
+
+      console.log('=== DELETE SUCCESS ===');
+      console.log('Successfully deleted:', deleteData.length, 'record(s)');
 
       setChangelogs(prevChangelogs => prevChangelogs.filter(changelog => changelog.id !== id));
       toast.success("Changelog deleted successfully!");
       
     } catch (error: any) {
-      console.error('Error deleting changelog:', error);
+      console.error('=== FINAL DELETE ERROR ===');
+      console.error('Error:', error);
       toast.error("Failed to delete changelog: " + error.message);
     }
   };
