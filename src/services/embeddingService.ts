@@ -1,10 +1,8 @@
 
-import { pipeline } from '@huggingface/transformers';
+import { supabase } from '@/integrations/supabase/client';
 
 class EmbeddingService {
   private static instance: EmbeddingService;
-  private embeddingPipeline: any = null;
-  private isInitialized = false;
 
   private constructor() {}
 
@@ -15,37 +13,25 @@ class EmbeddingService {
     return EmbeddingService.instance;
   }
 
-  async initialize(): Promise<void> {
-    if (this.isInitialized) return;
-
-    try {
-      console.log('Initializing embedding pipeline...');
-      this.embeddingPipeline = await pipeline(
-        'feature-extraction',
-        'mixedbread-ai/mxbai-embed-xsmall-v1',
-        { device: 'webgpu' }
-      );
-      this.isInitialized = true;
-      console.log('Embedding pipeline initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize embedding pipeline:', error);
-      throw error;
-    }
-  }
-
   async generateEmbedding(text: string): Promise<number[]> {
-    if (!this.embeddingPipeline) {
-      await this.initialize();
-    }
-
     try {
-      const result = await this.embeddingPipeline(text, {
-        pooling: 'mean',
-        normalize: true
-      });
+      console.log('Generating embedding with OpenAI...');
       
-      // Convert tensor to array
-      return Array.from(result.data as Float32Array);
+      const { data, error } = await supabase.functions.invoke('generate-embedding', {
+        body: { text }
+      });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to generate embedding');
+      }
+
+      if (!data || !data.embedding) {
+        throw new Error('No embedding returned from OpenAI service');
+      }
+
+      console.log('OpenAI embedding generated successfully');
+      return data.embedding;
     } catch (error) {
       console.error('Failed to generate embedding:', error);
       throw error;
@@ -53,28 +39,24 @@ class EmbeddingService {
   }
 
   async generateEmbeddings(texts: string[]): Promise<number[][]> {
-    if (!this.embeddingPipeline) {
-      await this.initialize();
-    }
-
     try {
-      const result = await this.embeddingPipeline(texts, {
-        pooling: 'mean',
-        normalize: true
+      console.log(`Generating ${texts.length} embeddings with OpenAI...`);
+      
+      const { data, error } = await supabase.functions.invoke('generate-embedding', {
+        body: { texts }
       });
-      
-      // Convert tensor to array of arrays
-      const embeddings: number[][] = [];
-      const data = Array.from(result.data as Float32Array);
-      const embeddingSize = data.length / texts.length;
-      
-      for (let i = 0; i < texts.length; i++) {
-        const start = i * embeddingSize;
-        const end = start + embeddingSize;
-        embeddings.push(data.slice(start, end));
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to generate embeddings');
       }
-      
-      return embeddings;
+
+      if (!data || !data.embeddings) {
+        throw new Error('No embeddings returned from OpenAI service');
+      }
+
+      console.log('OpenAI embeddings generated successfully');
+      return data.embeddings;
     } catch (error) {
       console.error('Failed to generate embeddings:', error);
       throw error;

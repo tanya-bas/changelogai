@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS changelog_embeddings (
   id TEXT PRIMARY KEY,
   content TEXT NOT NULL,
-  embedding vector(384), -- Adjust dimension based on your embedding model
+  embedding vector(1536), -- OpenAI text-embedding-3-small produces 1536-dimensional embeddings
   version TEXT NOT NULL,
   product TEXT,
   created_at TIMESTAMPTZ NOT NULL,
@@ -26,14 +26,14 @@ ON changelog_embeddings USING ivfflat (embedding vector_cosine_ops);
 
 -- Create a function for similarity search
 CREATE OR REPLACE FUNCTION search_similar_changelogs(
-  query_embedding vector(384),
+  query_embedding vector(1536),
   match_threshold float DEFAULT 0.7,
   match_count int DEFAULT 5
 )
 RETURNS TABLE (
   id text,
   content text,
-  embedding vector(384),
+  embedding vector(1536),
   version text,
   product text,
   created_at timestamptz,
@@ -67,7 +67,7 @@ $$;`;
       <CardHeader>
         <CardTitle>Supabase Vector Setup Required</CardTitle>
         <CardDescription>
-          To enable vector storage with pgvector, run this SQL in your Supabase SQL editor
+          To enable vector storage with pgvector and OpenAI embeddings, run this SQL in your Supabase SQL editor
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -87,7 +87,8 @@ $$;`;
               <li>Go to your Supabase project dashboard</li>
               <li>Navigate to the SQL Editor</li>
               <li>Paste and run the SQL above</li>
-              <li>This will create the necessary table and functions for vector storage</li>
+              <li>This will create the necessary table and functions for OpenAI vector storage</li>
+              <li>Make sure to add your OpenAI API key to Supabase Edge Function Secrets</li>
             </ol>
           </div>
         </div>
