@@ -25,9 +25,12 @@ class EmbeddingService {
 
   async generateEmbedding(text: string): Promise<number[]> {
     try {
-      console.log('Generating embedding with local model...');
+      console.log('=== EMBEDDING GENERATION DEBUG ===');
+      console.log('Input text length:', text.length);
+      console.log('Input text preview:', text.substring(0, 100) + '...');
       
       const generateEmbedding = await this.initializePipeline();
+      console.log('Pipeline initialized');
       
       // Generate a vector using Transformers.js
       const output = await generateEmbedding(text, {
@@ -35,8 +38,23 @@ class EmbeddingService {
         normalize: true,
       });
       
+      console.log('Raw output type:', typeof output);
+      console.log('Raw output shape:', output.dims || 'no dims');
+      console.log('Raw output data type:', typeof output.data);
+      console.log('Raw output data length:', output.data?.length);
+      
       // Extract the embedding output and ensure it's typed as number[]
       const embedding = Array.from(output.data) as number[];
+      
+      console.log('Final embedding length:', embedding.length);
+      console.log('First 5 embedding values:', embedding.slice(0, 5));
+      console.log('Embedding stats - min:', Math.min(...embedding), 'max:', Math.max(...embedding));
+      
+      // Check for NaN values
+      const nanCount = embedding.filter(v => isNaN(v)).length;
+      if (nanCount > 0) {
+        console.error(`Found ${nanCount} NaN values in embedding!`);
+      }
       
       console.log('Local embedding generated successfully');
       return embedding;
