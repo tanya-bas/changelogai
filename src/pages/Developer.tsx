@@ -37,7 +37,8 @@ const Developer = () => {
   const {
     generatedChangelog,
     isGenerating,
-    generateChangelog
+    generateChangelog,
+    clearChangelog
   } = useChangelogGenerator();
 
   const handleGenerate = () => {
@@ -48,15 +49,15 @@ const Developer = () => {
     setSelectedPreviousChangelogs(changelogs);
   };
 
-  const handlePublish = async (changelog: string, productName: string) => {
+  const handlePublish = async (changelog: string, productName: string): Promise<void> => {
     if (!version.trim() || !changelog.trim()) {
       toast.error("Please ensure both version and changelog are provided");
-      return;
+      throw new Error("Missing required fields");
     }
 
     if (!user) {
       toast.error("You must be signed in to publish a changelog");
-      return;
+      throw new Error("User not authenticated");
     }
 
     setIsPublishing(true);
@@ -101,6 +102,7 @@ const Developer = () => {
     } catch (error: any) {
       console.error('Error publishing changelog:', error);
       toast.error("Failed to publish changelog: " + error.message);
+      throw error;
     } finally {
       setIsPublishing(false);
     }
@@ -193,6 +195,7 @@ const Developer = () => {
               product={product}
               onPublish={handlePublish}
               isPublishing={isPublishing}
+              onClearChangelog={clearChangelog}
             />
           </div>
         </div>

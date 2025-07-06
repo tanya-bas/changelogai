@@ -11,8 +11,9 @@ interface ChangelogOutputProps {
   version: string;
   commits: string;
   product: string;
-  onPublish: (changelog: string, product: string) => void;
+  onPublish: (changelog: string, product: string) => Promise<void>;
   isPublishing: boolean;
+  onClearChangelog: () => void;
 }
 
 export const ChangelogOutput = ({ 
@@ -21,7 +22,8 @@ export const ChangelogOutput = ({
   commits, 
   product,
   onPublish,
-  isPublishing 
+  isPublishing,
+  onClearChangelog
 }: ChangelogOutputProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedChangelog, setEditedChangelog] = useState(generatedChangelog);
@@ -41,9 +43,18 @@ export const ChangelogOutput = ({
     toast.success("Changes saved!");
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     const changelogToPublish = isEditing ? editedChangelog : generatedChangelog;
-    onPublish(changelogToPublish, product);
+    try {
+      await onPublish(changelogToPublish, product);
+      // Clear the changelog fields after successful publishing
+      setEditedChangelog("");
+      setIsEditing(false);
+      onClearChangelog();
+    } catch (error) {
+      // Error handling is done in the parent component
+      console.error('Error in handlePublish:', error);
+    }
   };
 
   return (
@@ -99,7 +110,7 @@ export const ChangelogOutput = ({
                   <>
                     <Upload className="mr-2 h-4 w-4" />
                     Publish Changelog
-                  </>
+                  </Button>
                 )}
               </Button>
             </div>

@@ -63,10 +63,15 @@ export const useChangelogGenerator = () => {
     }
   };
 
+  const clearChangelog = () => {
+    setGeneratedChangelog("");
+  };
+
   return {
     generatedChangelog,
     isGenerating,
     generateChangelog,
-    setGeneratedChangelog
+    setGeneratedChangelog,
+    clearChangelog
   };
 };
