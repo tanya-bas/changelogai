@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sparkles } from "lucide-react";
+import { FileText } from "lucide-react";
 
 interface ChangelogInputProps {
   version: string;
@@ -15,7 +15,6 @@ interface ChangelogInputProps {
   setProduct: (product: string) => void;
   onGenerate: () => void;
   isGenerating: boolean;
-  isModelLoading: boolean;
 }
 
 export const ChangelogInput = ({
@@ -26,8 +25,7 @@ export const ChangelogInput = ({
   product,
   setProduct,
   onGenerate,
-  isGenerating,
-  isModelLoading
+  isGenerating
 }: ChangelogInputProps) => {
   return (
     <Card className="shadow-lg">
@@ -81,12 +79,12 @@ feat(ui): improve mobile responsiveness`}
           {isGenerating ? (
             <>
               <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-              {isModelLoading ? 'Loading AI Model...' : 'Generating...'}
+              Generating...
             </>
           ) : (
             <>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Generate AI Changelog
+              <FileText className="mr-2 h-4 w-4" />
+              Generate Changelog
             </>
           )}
         </Button>
