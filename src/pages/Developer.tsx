@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Sparkles, LogOut, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import AuthForm from "@/components/AuthForm";
 
 const Developer = () => {
   const [version, setVersion] = useState("");
