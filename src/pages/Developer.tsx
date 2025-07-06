@@ -1,9 +1,9 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useChangelogGenerator } from "@/hooks/useChangelogGenerator";
+import { useSemanticSearch } from "@/hooks/useSemanticSearch";
 import { supabase } from "@/integrations/supabase/client";
 import { changelogEmbeddingService } from "@/services/changelogEmbedding";
 import { toast } from "sonner";
@@ -11,13 +11,28 @@ import AuthForm from "@/components/AuthForm";
 import { DeveloperHeader } from "@/components/DeveloperHeader";
 import { ChangelogInput } from "@/components/ChangelogInput";
 import { ChangelogOutput } from "@/components/ChangelogOutput";
+import { PreviousChangelogSelector } from "@/components/PreviousChangelogSelector";
+
+interface ChangelogSearchResult {
+  id: string;
+  content: string;
+  embedding: number[];
+  version: string;
+  product?: string;
+  created_at: string;
+  changelog_id: number;
+  similarity: number;
+}
 
 const Developer = () => {
   const [version, setVersion] = useState("");
   const [commits, setCommits] = useState("");
   const [product, setProduct] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [selectedPreviousChangelogs, setSelectedPreviousChangelogs] = useState<ChangelogSearchResult[]>([]);
+  
   const { user, loading } = useAuth();
+  const { searchSimilarChangelogs, isSearching } = useSemanticSearch();
   const {
     generatedChangelog,
     isGenerating,
@@ -25,7 +40,11 @@ const Developer = () => {
   } = useChangelogGenerator();
 
   const handleGenerate = () => {
-    generateChangelog(version, commits);
+    generateChangelog(version, commits, selectedPreviousChangelogs);
+  };
+
+  const handlePreviousChangelogSelection = (changelogs: ChangelogSearchResult[]) => {
+    setSelectedPreviousChangelogs(changelogs);
   };
 
   const handlePublish = async (changelog: string, productName: string) => {
@@ -142,16 +161,25 @@ const Developer = () => {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
-            <ChangelogInput
-              version={version}
-              setVersion={setVersion}
-              commits={commits}
-              setCommits={setCommits}
-              product={product}
-              setProduct={setProduct}
-              onGenerate={handleGenerate}
-              isGenerating={isGenerating}
-            />
+            <div className="space-y-6">
+              <ChangelogInput
+                version={version}
+                setVersion={setVersion}
+                commits={commits}
+                setCommits={setCommits}
+                product={product}
+                setProduct={setProduct}
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+              />
+              
+              <PreviousChangelogSelector
+                commits={commits}
+                onSelectionChange={handlePreviousChangelogSelection}
+                searchSimilarChangelogs={searchSimilarChangelogs}
+                isSearching={isSearching}
+              />
+            </div>
 
             <ChangelogOutput 
               generatedChangelog={generatedChangelog}
