@@ -63,85 +63,6 @@ const Developer = () => {
     );
   }
 
-  const generateChangelog = async () => {
-    if (!commits.trim() || !version.trim()) {
-      toast.error("Please enter both version and commits");
-      return;
-    }
-
-    setIsGenerating(true);
-    
-    try {
-      let changelog: string;
-      
-      if (useAdvancedGeneration) {
-        changelog = await changelogGenerator.generateAdvancedChangelog(version, commits);
-        toast.success("AI-powered changelog generated successfully!");
-      } else {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        const commitLines = commits.split('\n').filter(line => line.trim());
-        const changes = {
-          features: [] as string[],
-          improvements: [] as string[],
-          fixes: [] as string[]
-        };
-
-        commitLines.forEach(commit => {
-          const lower = commit.toLowerCase();
-          if (lower.includes('feat') || lower.includes('add') || lower.includes('new')) {
-            changes.features.push(extractChangeDescription(commit));
-          } else if (lower.includes('fix') || lower.includes('bug') || lower.includes('resolve')) {
-            changes.fixes.push(extractChangeDescription(commit));
-          } else {
-            changes.improvements.push(extractChangeDescription(commit));
-          }
-        });
-
-        changelog = `## Version ${version}\n\n`;
-        
-        if (changes.features.length > 0) {
-          changelog += "### 🚀 New Features\n";
-          changes.features.forEach(feature => {
-            changelog += `- ${feature}\n`;
-          });
-          changelog += "\n";
-        }
-
-        if (changes.improvements.length > 0) {
-          changelog += "### ⚡ Improvements\n";
-          changes.improvements.forEach(improvement => {
-            changelog += `- ${improvement}\n`;
-          });
-          changelog += "\n";
-        }
-
-        if (changes.fixes.length > 0) {
-          changelog += "### 🐛 Bug Fixes\n";
-          changes.fixes.forEach(fix => {
-            changelog += `- ${fix}\n`;
-          });
-          changelog += "\n";
-        }
-        
-        toast.success("Simple changelog generated successfully!");
-      }
-
-      setGeneratedChangelog(changelog);
-      
-    } catch (error: any) {
-      if (error.message.includes('OpenAI API key')) {
-        toast.error("OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.");
-      } else if (error.message.includes('quota exceeded')) {
-        toast.error("OpenAI API quota exceeded. Please check your billing settings or try simple generation.");
-      } else {
-        toast.error(`Failed to generate changelog: ${error.message}`);
-      }
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const extractChangeDescription = (commit: string): string => {
     let description = commit
       .replace(/^(feat|fix|chore|docs|style|refactor|test)(\(.+\))?:\s*/i, '')
@@ -153,6 +74,110 @@ const Developer = () => {
     }
     
     return description || 'Miscellaneous updates';
+  };
+
+  const generateSimpleChangelog = (commits: string, version: string): string => {
+    console.log('Generating simple changelog for version:', version);
+    console.log('Commits:', commits);
+    
+    const commitLines = commits.split('\n').filter(line => line.trim());
+    console.log('Commit lines:', commitLines);
+    
+    const changes = {
+      features: [] as string[],
+      improvements: [] as string[],
+      fixes: [] as string[]
+    };
+
+    commitLines.forEach(commit => {
+      const lower = commit.toLowerCase();
+      const description = extractChangeDescription(commit);
+      
+      if (lower.includes('feat') || lower.includes('add') || lower.includes('new')) {
+        changes.features.push(description);
+      } else if (lower.includes('fix') || lower.includes('bug') || lower.includes('resolve')) {
+        changes.fixes.push(description);
+      } else {
+        changes.improvements.push(description);
+      }
+    });
+
+    console.log('Categorized changes:', changes);
+
+    let changelog = `## Version ${version}\n\n`;
+    
+    if (changes.features.length > 0) {
+      changelog += "### 🚀 New Features\n";
+      changes.features.forEach(feature => {
+        changelog += `- ${feature}\n`;
+      });
+      changelog += "\n";
+    }
+
+    if (changes.improvements.length > 0) {
+      changelog += "### ⚡ Improvements\n";
+      changes.improvements.forEach(improvement => {
+        changelog += `- ${improvement}\n`;
+      });
+      changelog += "\n";
+    }
+
+    if (changes.fixes.length > 0) {
+      changelog += "### 🐛 Bug Fixes\n";
+      changes.fixes.forEach(fix => {
+        changelog += `- ${fix}\n`;
+      });
+      changelog += "\n";
+    }
+
+    console.log('Generated changelog:', changelog);
+    return changelog;
+  };
+
+  const generateChangelog = async () => {
+    if (!commits.trim() || !version.trim()) {
+      toast.error("Please enter both version and commits");
+      return;
+    }
+
+    console.log('Starting changelog generation...');
+    console.log('Use advanced generation:', useAdvancedGeneration);
+    console.log('Version:', version);
+    console.log('Commits:', commits);
+
+    setIsGenerating(true);
+    
+    try {
+      let changelog: string;
+      
+      if (useAdvancedGeneration) {
+        console.log('Using advanced generation...');
+        changelog = await changelogGenerator.generateAdvancedChangelog(version, commits);
+        console.log('Advanced changelog result:', changelog);
+        toast.success("AI-powered changelog generated successfully!");
+      } else {
+        console.log('Using simple generation...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        changelog = generateSimpleChangelog(commits, version);
+        console.log('Simple changelog result:', changelog);
+        toast.success("Simple changelog generated successfully!");
+      }
+
+      console.log('Setting generated changelog state:', changelog);
+      setGeneratedChangelog(changelog);
+      
+    } catch (error: any) {
+      console.error('Error generating changelog:', error);
+      if (error.message.includes('OpenAI API key')) {
+        toast.error("OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.");
+      } else if (error.message.includes('quota exceeded')) {
+        toast.error("OpenAI API quota exceeded. Please check your billing settings or try simple generation.");
+      } else {
+        toast.error(`Failed to generate changelog: ${error.message}`);
+      }
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const publishChangelog = async () => {
@@ -353,6 +378,9 @@ BREAKING CHANGE: update API endpoint structure`}
                   <div className="text-center py-12 text-slate-500">
                     <Sparkles className="mx-auto h-12 w-12 mb-4 text-slate-300" />
                     <p>Your generated changelog will appear here</p>
+                    <div className="mt-4 text-xs text-slate-400">
+                      Current state: {generatedChangelog === "" ? "Empty string" : "Not empty"}
+                    </div>
                   </div>
                 )}
               </CardContent>
