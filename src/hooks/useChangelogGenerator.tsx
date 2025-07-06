@@ -17,8 +17,8 @@ export const useChangelogGenerator = () => {
     try {
       console.log('Calling OpenAI edge function...');
       
-      // Call the Supabase edge function
-      const { data, error } = await supabase.functions.invoke('generate-changelog', {
+      // Call the Supabase edge function with the correct name
+      const { data, error } = await supabase.functions.invoke('dynamic-responder', {
         body: {
           version: version.trim(),
           commits: commits.trim()
