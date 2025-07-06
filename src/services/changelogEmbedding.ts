@@ -45,6 +45,39 @@ class ChangelogEmbeddingService {
     }
   }
 
+  async clearAllEmbeddings(): Promise<void> {
+    try {
+      console.log('Clearing all existing embeddings...');
+      const { error } = await supabase
+        .from('changelog_embeddings')
+        .delete()
+        .neq('id', ''); // Delete all rows
+      
+      if (error) throw error;
+      console.log('All embeddings cleared successfully');
+    } catch (error) {
+      console.error('Failed to clear embeddings:', error);
+      throw error;
+    }
+  }
+
+  async reEmbedAllChangelogs(): Promise<void> {
+    try {
+      console.log('Starting complete re-embedding process...');
+      
+      // First, clear all existing embeddings
+      await this.clearAllEmbeddings();
+      
+      // Then embed all changelogs fresh
+      await this.embedAllChangelogs();
+      
+      console.log('Complete re-embedding process finished successfully');
+    } catch (error) {
+      console.error('Failed to re-embed all changelogs:', error);
+      throw error;
+    }
+  }
+
   async embedAllChangelogs(): Promise<void> {
     try {
       console.log('Fetching all changelogs for embedding with pgvector...');
@@ -107,6 +140,20 @@ class ChangelogEmbeddingService {
     } catch (error) {
       console.error(`Failed to delete embedding for changelog ${changelogId}:`, error);
       throw error;
+    }
+  }
+
+  async getEmbeddingCount(): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('changelog_embeddings')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Failed to get embedding count:', error);
+      return 0;
     }
   }
 }

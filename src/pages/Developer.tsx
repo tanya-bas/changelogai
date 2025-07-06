@@ -11,6 +11,7 @@ import { DeveloperHeader } from "@/components/DeveloperHeader";
 import { ChangelogInput } from "@/components/ChangelogInput";
 import { ChangelogOutput } from "@/components/ChangelogOutput";
 import { VectorSetupInstructions } from "@/components/VectorSetupInstructions";
+import { EmbeddingManager } from "@/components/EmbeddingManager";
 import { useAutoEmbedding } from "@/hooks/useAutoEmbedding";
 
 const Developer = () => {
@@ -147,6 +148,10 @@ const Developer = () => {
               <VectorSetupInstructions />
             </div>
           )}
+
+          <div className="mb-8">
+            <EmbeddingManager />
+          </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
             <ChangelogInput
