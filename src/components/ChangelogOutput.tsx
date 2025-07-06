@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Edit, Save, Copy, Upload } from "lucide-react";
+import { Sparkles, Edit, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 interface ChangelogOutputProps {
@@ -27,12 +28,6 @@ export const ChangelogOutput = ({
   useEffect(() => {
     setEditedChangelog(generatedChangelog);
   }, [generatedChangelog]);
-
-  const copyToClipboard = () => {
-    const textToCopy = isEditing ? editedChangelog : generatedChangelog;
-    navigator.clipboard.writeText(textToCopy);
-    toast.success("Changelog copied to clipboard!");
-  };
 
   const handleEdit = () => {
     setEditedChangelog(generatedChangelog);
@@ -87,11 +82,6 @@ export const ChangelogOutput = ({
                   Edit
                 </Button>
               )}
-              
-              <Button onClick={copyToClipboard} variant="outline" className="flex-1">
-                <Copy className="mr-2 h-4 w-4" />
-                Copy
-              </Button>
               
               <Button 
                 onClick={handlePublish} 
