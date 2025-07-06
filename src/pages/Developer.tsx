@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Sparkles, LogOut, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import AuthForm from "@/components/AuthForm";
 
 const Developer = () => {
@@ -16,7 +16,6 @@ const Developer = () => {
   const [commits, setCommits] = useState("");
   const [generatedChangelog, setGeneratedChangelog] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [apiKey, setApiKey] = useState("");
   const { user, loading, signOut } = useAuth();
 
   if (loading) {
@@ -67,54 +66,26 @@ const Developer = () => {
       return;
     }
 
-    if (!apiKey.trim()) {
-      toast.error("Please enter your OpenAI API key");
-      return;
-    }
-
     setIsGenerating(true);
     
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4.1-2025-04-14',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a changelog generator. Convert the provided commit messages into a well-formatted, user-friendly changelog. 
-
-Format the output as markdown with:
-- A version header (## Version X.X.X)
-- Organized sections: 🚀 New Features, ⚡ Improvements, 🐛 Bug Fixes
-- Each change as a bullet point with clear, user-friendly language
-- Remove technical jargon and make it accessible to end users
-
-If a commit doesn't fit clearly into features/improvements/fixes, put it in the most appropriate category or create a "🔧 Other Changes" section.`
-            },
-            {
-              role: 'user',
-              content: `Version: ${version}\n\nCommit messages:\n${commits}`
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 1500,
-        }),
+      const { data, error } = await supabase.functions.invoke('generate-changelog', {
+        body: {
+          version: version.trim(),
+          commits: commits.trim()
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
+      if (error) {
+        throw new Error(error.message || 'Failed to generate changelog');
       }
 
-      const data = await response.json();
-      const changelog = data.choices[0]?.message?.content || '';
-      
-      setGeneratedChangelog(changelog);
-      toast.success("AI-enhanced changelog generated successfully!");
+      if (data?.changelog) {
+        setGeneratedChangelog(data.changelog);
+        toast.success("AI-enhanced changelog generated successfully!");
+      } else {
+        throw new Error('No changelog returned from the API');
+      }
       
     } catch (error: any) {
       console.error('Error generating changelog:', error);
@@ -177,21 +148,10 @@ If a commit doesn't fit clearly into features/improvements/fixes, put it in the 
               <CardHeader>
                 <CardTitle>Input</CardTitle>
                 <CardDescription>
-                  Enter your OpenAI API key, version number and commit messages
+                  Enter your version number and commit messages
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="apiKey">OpenAI API Key</Label>
-                  <Input
-                    id="apiKey"
-                    type="password"
-                    placeholder="sk-..."
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                  />
-                </div>
-
                 <div>
                   <Label htmlFor="version">Version Number</Label>
                   <Input
