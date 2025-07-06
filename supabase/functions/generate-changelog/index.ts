@@ -43,7 +43,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -68,7 +68,8 @@ If a commit doesn't fit clearly into features/improvements/fixes, put it in the 
     })
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`)
+      const errorText = await response.text()
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
