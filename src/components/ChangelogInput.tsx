@@ -15,6 +15,7 @@ interface ChangelogInputProps {
   setProduct: (product: string) => void;
   onGenerate: () => void;
   isGenerating: boolean;
+  showGenerateButton?: boolean;
 }
 
 export const ChangelogInput = ({
@@ -25,7 +26,8 @@ export const ChangelogInput = ({
   product,
   setProduct,
   onGenerate,
-  isGenerating
+  isGenerating,
+  showGenerateButton = true
 }: ChangelogInputProps) => {
   return (
     <Card className="shadow-lg">
@@ -71,23 +73,25 @@ feat(ui): improve mobile responsiveness`}
           />
         </div>
 
-        <Button 
-          onClick={onGenerate} 
-          className="w-full"
-          disabled={isGenerating}
-        >
-          {isGenerating ? (
-            <>
-              <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-              Generating...
-            </>
-          ) : (
-            <>
-              <FileText className="mr-2 h-4 w-4" />
-              Generate Changelog
-            </>
-          )}
-        </Button>
+        {showGenerateButton && (
+          <Button 
+            onClick={onGenerate} 
+            className="w-full"
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileText className="mr-2 h-4 w-4" />
+                Generate Changelog
+              </>
+            )}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

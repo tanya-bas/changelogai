@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Package } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, Package, FileText } from "lucide-react";
 
 interface ChangelogSearchResult {
   id: string;
@@ -21,13 +22,19 @@ interface PreviousChangelogSelectorProps {
   onSelectionChange: (selectedChangelogs: ChangelogSearchResult[]) => void;
   searchSimilarChangelogs: (query: string, limit?: number) => Promise<ChangelogSearchResult[]>;
   isSearching: boolean;
+  version: string;
+  onGenerate: () => void;
+  isGenerating: boolean;
 }
 
 export const PreviousChangelogSelector = ({
   commits,
   onSelectionChange,
   searchSimilarChangelogs,
-  isSearching
+  isSearching,
+  version,
+  onGenerate,
+  isGenerating
 }: PreviousChangelogSelectorProps) => {
   const [relevantChangelogs, setRelevantChangelogs] = useState<ChangelogSearchResult[]>([]);
   const [selectedChangelogs, setSelectedChangelogs] = useState<Set<string>>(new Set());
@@ -121,7 +128,42 @@ export const PreviousChangelogSelector = ({
   };
 
   if (!commits.trim()) {
-    return null;
+    return (
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Context Selection
+          </CardTitle>
+          <CardDescription>
+            Enter commit messages above to find similar previous changelogs for context
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-center py-8 text-slate-500">
+            Add commit messages to search for relevant context
+          </div>
+          
+          <Button 
+            onClick={onGenerate} 
+            className="w-full"
+            disabled={isGenerating || !version.trim() || !commits.trim()}
+          >
+            {isGenerating ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileText className="mr-2 h-4 w-4" />
+                Generate Changelog
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -190,6 +232,26 @@ export const PreviousChangelogSelector = ({
             </div>
           </div>
         )}
+        
+        <div className="pt-4 border-t">
+          <Button 
+            onClick={onGenerate} 
+            className="w-full"
+            disabled={isGenerating || !version.trim() || !commits.trim()}
+          >
+            {isGenerating ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                Generating with {selectedChangelogs.size} context changelogs...
+              </>
+            ) : (
+              <>
+                <FileText className="mr-2 h-4 w-4" />
+                Generate Changelog {selectedChangelogs.size > 0 && `(with ${selectedChangelogs.size} context ${selectedChangelogs.size === 1 ? 'changelog' : 'changelogs'})`}
+              </>
+            )}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

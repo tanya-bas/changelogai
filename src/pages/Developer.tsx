@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -171,6 +172,7 @@ const Developer = () => {
                 setProduct={setProduct}
                 onGenerate={handleGenerate}
                 isGenerating={isGenerating}
+                showGenerateButton={false}
               />
               
               <PreviousChangelogSelector
@@ -178,6 +180,9 @@ const Developer = () => {
                 onSelectionChange={handlePreviousChangelogSelection}
                 searchSimilarChangelogs={searchSimilarChangelogs}
                 isSearching={isSearching}
+                version={version}
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
               />
             </div>
 
