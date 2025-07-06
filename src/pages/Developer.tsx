@@ -33,18 +33,28 @@ const Developer = () => {
       return;
     }
 
+    if (!user) {
+      toast.error("You must be signed in to publish a changelog");
+      return;
+    }
+
     setIsPublishing(true);
     
     try {
+      console.log('Publishing changelog for user:', user.id);
       const { error } = await supabase
         .from('changelogs')
         .insert({
           version: version.trim(),
           content: changelog,
-          commits: commits
+          commits: commits,
+          user_id: user.id
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast.success("Changelog published successfully!");
       
