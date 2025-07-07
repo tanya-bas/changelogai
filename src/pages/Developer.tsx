@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useChangelogGenerator } from "@/hooks/useChangelogGenerator";
 import { useSemanticSearch } from "@/hooks/useSemanticSearch";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { supabase } from "@/integrations/supabase/client";
 import { changelogEmbeddingService } from "@/services/changelogEmbedding";
 import { toast } from "sonner";
@@ -90,7 +90,6 @@ const Developer = () => {
         toast.success("Changelog published and indexed for search!");
       } catch (embeddingError) {
         console.error('Failed to embed changelog:', embeddingError);
-        // Don't show error to user - embedding is not critical for publishing
         toast.success("Changelog published successfully!");
       }
       
@@ -111,10 +110,7 @@ const Developer = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
+        <LoadingSpinner text="Loading..." />
       </div>
     );
   }

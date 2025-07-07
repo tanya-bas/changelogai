@@ -1,9 +1,10 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Edit, Save, Upload } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 
 interface ChangelogOutputProps {
@@ -26,16 +27,7 @@ export const ChangelogOutput = ({
   onClearChangelog
 }: ChangelogOutputProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedChangelog, setEditedChangelog] = useState(generatedChangelog);
-
-  // Update edited changelog when generated changelog changes
-  useEffect(() => {
-    setEditedChangelog(generatedChangelog);
-    // Also exit editing mode when changelog is cleared
-    if (!generatedChangelog) {
-      setIsEditing(false);
-    }
-  }, [generatedChangelog]);
+  const [editedChangelog, setEditedChangelog] = useState("");
 
   const handleEdit = () => {
     setEditedChangelog(generatedChangelog);
@@ -51,13 +43,15 @@ export const ChangelogOutput = ({
     const changelogToPublish = isEditing ? editedChangelog : generatedChangelog;
     try {
       await onPublish(changelogToPublish, product);
-      // Only call the parent's clear function - let useEffect handle local state
+      setIsEditing(false);
+      setEditedChangelog("");
       onClearChangelog();
     } catch (error) {
-      // Error handling is done in the parent component
       console.error('Error in handlePublish:', error);
     }
   };
+
+  const displayChangelog = isEditing ? editedChangelog : generatedChangelog;
 
   return (
     <Card className="shadow-lg">
@@ -80,7 +74,7 @@ export const ChangelogOutput = ({
                 />
               ) : (
                 <pre className="whitespace-pre-wrap text-sm text-slate-700">
-                  {editedChangelog || generatedChangelog}
+                  {displayChangelog}
                 </pre>
               )}
             </div>
@@ -105,7 +99,7 @@ export const ChangelogOutput = ({
               >
                 {isPublishing ? (
                   <>
-                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    <LoadingSpinner size="sm" className="mr-2" />
                     Publishing...
                   </>
                 ) : (
