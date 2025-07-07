@@ -11,6 +11,7 @@ import { Search, Wrench, Edit, Trash2, Save, X, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { renderMarkdown } from "@/lib/utils";
 
 interface ChangelogEntry {
   id: number;
@@ -139,26 +140,6 @@ const Index = () => {
       month: 'long',
       day: 'numeric'
     });
-  };
-
-  const renderMarkdown = (content: string) => {
-    return content
-      .split('\n')
-      .map((line, index) => {
-        if (line.startsWith('## ')) {
-          return <h2 key={index} className="text-2xl font-bold text-slate-900 mb-4">{line.replace('## ', '')}</h2>;
-        }
-        if (line.startsWith('### ')) {
-          return <h3 key={index} className="text-lg font-semibold text-slate-800 mb-2 mt-4">{line.replace('### ', '')}</h3>;
-        }
-        if (line.startsWith('- ')) {
-          return <li key={index} className="text-slate-700 mb-1">{line.replace('- ', '')}</li>;
-        }
-        if (line.trim() === '') {
-          return <br key={index} />;
-        }
-        return <p key={index} className="text-slate-700 mb-2">{line}</p>;
-      });
   };
 
   if (loading) {
