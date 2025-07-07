@@ -11,7 +11,7 @@ import { Search, Wrench, Edit, Trash2, Save, X, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { renderMarkdown } from "@/lib/utils";
+import { renderMarkdown, highlightText } from "@/lib/utils";
 
 interface ChangelogEntry {
   id: number;
@@ -237,11 +237,11 @@ const Index = () => {
                           <>
                             <div className="flex items-center gap-2 mb-2">
                               <h2 className="text-xl font-bold text-slate-900">
-                                Version {changelog.version}
+                                Version {highlightText(changelog.version, searchTerm)}
                               </h2>
                               {changelog.product && (
                                 <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                                  {changelog.product}
+                                  {highlightText(changelog.product, searchTerm)}
                                 </Badge>
                               )}
                             </div>
@@ -308,7 +308,7 @@ const Index = () => {
                       />
                     ) : (
                       <div className="prose prose-slate max-w-none">
-                        {renderMarkdown(changelog.content)}
+                        {renderMarkdown(changelog.content, searchTerm)}
                       </div>
                     )}
                   </CardContent>

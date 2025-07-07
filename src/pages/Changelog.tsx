@@ -9,7 +9,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { renderMarkdown } from "@/lib/utils";
+import { renderMarkdown, highlightText } from "@/lib/utils";
 
 interface ChangelogEntry {
   id: number;
@@ -192,7 +192,7 @@ const Changelog = () => {
                           />
                         ) : (
                           <h2 className="text-xl font-bold text-slate-900">
-                            Version {changelog.version}
+                            Version {highlightText(changelog.version, searchTerm)}
                           </h2>
                         )}
                         <p className="text-slate-600">
@@ -256,7 +256,7 @@ const Changelog = () => {
                       />
                     ) : (
                       <div className="prose prose-slate max-w-none">
-                        {renderMarkdown(changelog.content)}
+                        {renderMarkdown(changelog.content, searchTerm)}
                       </div>
                     )}
                   </CardContent>
